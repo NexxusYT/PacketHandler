@@ -1,9 +1,9 @@
 package com.github.razorplay.packet_handler.network;
 
-import com.github.razorplay01.minecraft_events_utiles.minecrafteventsutilescommon.exceptions.PacketInstantiationException;
-import com.github.razorplay01.minecraft_events_utiles.minecrafteventsutilescommon.exceptions.PacketNotFoundException;
-import com.github.razorplay01.minecraft_events_utiles.minecrafteventsutilescommon.exceptions.PacketRegistrationException;
-import com.github.razorplay01.minecraft_events_utiles.minecrafteventsutilescommon.exceptions.PacketSerializationException;
+import com.github.razorplay.packet_handler.exceptions.PacketInstantiationException;
+import com.github.razorplay.packet_handler.exceptions.PacketNotFoundException;
+import com.github.razorplay.packet_handler.exceptions.PacketRegistrationException;
+import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
@@ -18,6 +18,11 @@ import java.util.Set;
 /**
  * Handles TCP packet registration, serialization, and deserialization for network communication.
  * This utility class manages a registry of packet types and provides methods for packet handling.
+ *
+ *  @author RazorPlay01
+ *  @version 1.0
+ *  @since 1.0
+ *
  */
 public class PacketTCP {
     public static final Logger LOGGER = LoggerFactory.getLogger("PacketTCP");
@@ -55,11 +60,9 @@ public class PacketTCP {
                 @SuppressWarnings("unchecked")
                 Class<? extends IPacket> packetClass = (Class<? extends IPacket>) clazz;
 
-                // Crear una instancia temporal para obtener el ID del paquete
                 IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
                 String packetId = tempPacket.getPacketId();
 
-                // Verificar si el ID ya está registrado
                 if (packetRegistry.containsKey(packetId)) {
                     throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
                 }
@@ -114,7 +117,7 @@ public class PacketTCP {
     public static byte[] write(IPacket packet) throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         String packetType = getPacketType(packet);
-        out.writeUTF(packetType); // Escribimos el ID en formato String
+        out.writeUTF(packetType);
         packet.write(out);
         return out.toByteArray();
     }
@@ -128,7 +131,7 @@ public class PacketTCP {
      * @throws PacketSerializationException if there's an error during deserialization
      */
     public static IPacket read(ByteArrayDataInput buf) throws PacketInstantiationException, PacketSerializationException {
-        String packetType = buf.readUTF(); // Leemos el ID como String
+        String packetType = buf.readUTF();
         Class<? extends IPacket> packetClass = packetRegistry.get(packetType);
 
         if (packetClass == null) {

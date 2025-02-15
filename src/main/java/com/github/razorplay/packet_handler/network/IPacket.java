@@ -1,6 +1,6 @@
 package com.github.razorplay.packet_handler.network;
 
-import com.github.razorplay01.minecraft_events_utiles.minecrafteventsutilescommon.exceptions.PacketSerializationException;
+import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 

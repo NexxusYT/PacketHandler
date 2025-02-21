@@ -4,6 +4,7 @@ import com.github.razorplay.packet_handler.exceptions.PacketInstantiationExcepti
 import com.github.razorplay.packet_handler.exceptions.PacketNotFoundException;
 import com.github.razorplay.packet_handler.exceptions.PacketRegistrationException;
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
+import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
@@ -18,11 +19,6 @@ import java.util.Set;
 /**
  * Handles TCP packet registration, serialization, and deserialization for network communication.
  * This utility class manages a registry of packet types and provides methods for packet handling.
- *
- *  @author RazorPlay01
- *  @version 1.0
- *  @since 1.0
- *
  */
 public class PacketTCP {
     public static final Logger LOGGER = LoggerFactory.getLogger("PacketTCP");
@@ -118,7 +114,8 @@ public class PacketTCP {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         String packetType = getPacketType(packet);
         out.writeUTF(packetType);
-        packet.write(out);
+        PacketDataSerializer serializer = new PacketDataSerializer(out);
+        packet.write(serializer);
         return out.toByteArray();
     }
 
@@ -140,7 +137,8 @@ public class PacketTCP {
 
         try {
             IPacket packet = packetClass.getDeclaredConstructor().newInstance();
-            packet.read(buf);
+            PacketDataSerializer serializer = new PacketDataSerializer(buf);
+            packet.read(serializer);
             return packet;
         } catch (ReflectiveOperationException e) {
             throw new PacketInstantiationException("Error instantiating packet with ID " + packetType, e);

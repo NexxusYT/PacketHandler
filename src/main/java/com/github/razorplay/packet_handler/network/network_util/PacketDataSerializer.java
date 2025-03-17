@@ -235,6 +235,40 @@ public class PacketDataSerializer {
         return input.readUTF();
     }
 
+    /**
+     * Writes an enum value to the output buffer by serializing its name as a UTF-8 string.
+     *
+     * @param enumValue The enum value to write
+     * @param <T>       The type of the enum
+     * @throws IllegalStateException if the serializer is not in writing mode
+     */
+    public <T extends Enum<T>> void writeEnum(T enumValue) {
+        if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
+        writeString(enumValue != null ? enumValue.name() : "null");
+    }
+
+    /**
+     * Reads an enum value from the input buffer by deserializing its name and converting it back to the enum type.
+     *
+     * @param enumClass The class of the enum to read
+     * @param <T>       The type of the enum
+     * @return The enum value read from the buffer, or null if "null" was written
+     * @throws IllegalStateException    if the serializer is not in reading mode
+     * @throws IllegalArgumentException if the enum name is invalid for the provided enum class
+     */
+    public <T extends Enum<T>> T readEnum(Class<T> enumClass) {
+        if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
+        String name = readString();
+        if ("null".equals(name)) {
+            return null; // Maneja el caso de null
+        }
+        try {
+            return Enum.valueOf(enumClass, name);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid enum value '" + name + "' for " + enumClass.getSimpleName(), e);
+        }
+    }
+
 
     /**
      * Writes a list to the output buffer using the provided element writer.

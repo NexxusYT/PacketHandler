@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'com.github.razorplay.packet_handler'
@@ -24,6 +25,13 @@ dependencies {
 
     testCompileOnly 'org.projectlombok:lombok:1.18.36'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
+}
+
+shadowJar {
+    archiveClassifier.set('all') // Clasificador para el JAR sombreado
+    mergeServiceFiles() // Fusionar archivos de servicio (importante para reflections)
+
+    configurations = [project.configurations.runtimeClasspath]
 }
 
 javadoc {

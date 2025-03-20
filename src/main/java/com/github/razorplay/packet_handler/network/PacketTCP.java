@@ -10,11 +10,9 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Handles TCP packet registration, serialization, and deserialization for network communication.
@@ -22,7 +20,6 @@ import java.util.Set;
  */
 public class PacketTCP {
     public static final Logger LOGGER = LoggerFactory.getLogger("PacketTCP");
-    public static final String PACKET_CHANNEL = "razorplay01:packets_channel";
     private static final BiMap<String, Class<? extends IPacket>> packetRegistry = HashBiMap.create();
 
     /**
@@ -33,28 +30,22 @@ public class PacketTCP {
     }
 
     /**
-     * Scans the specified package and automatically registers all packet classes annotated with @Packet
+     * Registers all packet classes provided explicitly.
      *
-     * @param basePackage The base package to scan for packet classes
-     * @throws IllegalArgumentException if basePackage is null or empty
+     * @param packetClasses Array of packet classes to register
+     * @throws IllegalArgumentException if packetClasses is null or empty
      */
-    public static void scanAndRegisterPackets(String basePackage) {
+    public static void registerPackets(Class<? extends IPacket>... packetClasses) {
         try {
-            if (basePackage == null || basePackage.isEmpty()) {
-                throw new IllegalArgumentException("Base package cannot be null or empty.");
+            if (packetClasses == null || packetClasses.length == 0) {
+                throw new IllegalArgumentException("Packet classes cannot be null or empty.");
             }
 
-            Reflections reflections = new Reflections(basePackage);
-            Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Packet.class);
-
-            for (Class<?> clazz : annotatedClasses) {
-                if (!IPacket.class.isAssignableFrom(clazz)) {
-                    LOGGER.warn("Class {} is annotated with @Packet but does not implement IPacket. Skipping.", clazz.getName());
+            for (Class<? extends IPacket> packetClass : packetClasses) {
+                if (!IPacket.class.isAssignableFrom(packetClass)) {
+                    LOGGER.warn("Class {} does not implement IPacket. Skipping.", packetClass.getName());
                     continue;
                 }
-
-                @SuppressWarnings("unchecked")
-                Class<? extends IPacket> packetClass = (Class<? extends IPacket>) clazz;
 
                 IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
                 String packetId = tempPacket.getPacketId();

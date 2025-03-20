@@ -2,7 +2,6 @@ package com.github.razorplay.packet_handler.network.packet;
 
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.IPacket;
-import com.github.razorplay.packet_handler.network.Packet;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
 import lombok.NoArgsConstructor;
 
@@ -14,7 +13,6 @@ import lombok.NoArgsConstructor;
  * <p>Example usage of creating a new packet based on this template:
  * <pre>
  * {@code
- * @Packet
  * @NoArgsConstructor
  * public class MyNewPacket implements IPacket {
  *     private String someData;
@@ -37,9 +35,7 @@ import lombok.NoArgsConstructor;
  * }</pre>
  *
  * @see IPacket
- * @see Packet
  */
-@Packet
 @NoArgsConstructor
 public class EmptyPacket implements IPacket {
 

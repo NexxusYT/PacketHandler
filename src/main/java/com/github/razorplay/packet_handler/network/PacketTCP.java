@@ -10,16 +10,11 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Optional;
 import java.util.Set;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.HashSet;
 
 /**
  * Handles TCP packet registration, serialization, and deserialization for network communication.
@@ -49,111 +44,31 @@ public class PacketTCP {
                 throw new IllegalArgumentException("Base package cannot be null or empty.");
             }
 
-            // Convertir el paquete a una ruta de directorio (p.ej., "com.example" -> "com/example")
-            String packagePath = basePackage.replace('.', '/');
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            Set<Class<?>> packetClasses = new HashSet<>();
+            Reflections reflections = new Reflections(basePackage);
+            Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Packet.class);
 
-            // Obtener todos los recursos (directorios o jars) que coincidan con el paquete
-            Enumeration<URL> resources = classLoader.getResources(packagePath);
-            while (resources.hasMoreElements()) {
-                URL resource = resources.nextElement();
-                String protocol = resource.getProtocol();
-
-                if ("file".equals(protocol)) {
-                    // Escanear clases en un directorio (útil en desarrollo)
-                    File directory = new File(resource.getFile());
-                    if (directory.exists()) {
-                        packetClasses.addAll(findClasses(directory, basePackage));
-                    }
-                } else if ("jar".equals(protocol)) {
-                    // Escanear clases en un archivo JAR (útil en producción)
-                    String jarPath = resource.getPath().substring(5, resource.getPath().indexOf("!"));
-                    packetClasses.addAll(findClassesInJar(jarPath, basePackage));
-                }
-            }
-
-            // Procesar las clases encontradas
-            for (Class<?> clazz : packetClasses) {
+            for (Class<?> clazz : annotatedClasses) {
                 if (!IPacket.class.isAssignableFrom(clazz)) {
                     LOGGER.warn("Class {} is annotated with @Packet but does not implement IPacket. Skipping.", clazz.getName());
                     continue;
                 }
 
-                if (clazz.isAnnotationPresent(Packet.class)) {
-                    @SuppressWarnings("unchecked")
-                    Class<? extends IPacket> packetClass = (Class<? extends IPacket>) clazz;
+                @SuppressWarnings("unchecked")
+                Class<? extends IPacket> packetClass = (Class<? extends IPacket>) clazz;
 
-                    IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
-                    String packetId = tempPacket.getPacketId();
+                IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
+                String packetId = tempPacket.getPacketId();
 
-                    if (packetRegistry.containsKey(packetId)) {
-                        throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
-                    }
-
-                    registerPacket(packetId, packetClass);
-                    LOGGER.info("Registered packet: {} with ID \"{}\"", packetClass.getSimpleName(), packetId);
+                if (packetRegistry.containsKey(packetId)) {
+                    throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
                 }
+
+                registerPacket(packetId, packetClass);
+                LOGGER.info("Registered packet: {} with ID \"{}\"", packetClass.getSimpleName(), packetId);
             }
         } catch (Exception e) {
             LOGGER.error("Packet registration exception:", e);
         }
-    }
-
-    /**
-     * Finds all classes in a directory recursively.
-     *
-     * @param directory   The base directory to scan
-     * @param packageName The package name for classes in this directory
-     * @return A set of classes found
-     */
-    private static Set<Class<?>> findClasses(File directory, String packageName) throws ClassNotFoundException {
-        Set<Class<?>> classes = new HashSet<>();
-        if (!directory.exists()) {
-            return classes;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return classes;
-        }
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                // Recursivamente buscar en subdirectorios
-                classes.addAll(findClasses(file, packageName + "." + file.getName()));
-            } else if (file.getName().endsWith(".class")) {
-                // Cargar la clase desde el archivo .class
-                String className = packageName + '.' + file.getName().substring(0, file.getName().length() - 6);
-                classes.add(Class.forName(className));
-            }
-        }
-        return classes;
-    }
-
-    /**
-     * Finds all classes in a JAR file that belong to the specified package.
-     *
-     * @param jarPath     The path to the JAR file
-     * @param packageName The package to scan
-     * @return A set of classes found
-     */
-    private static Set<Class<?>> findClassesInJar(String jarPath, String packageName) throws IOException, ClassNotFoundException {
-        Set<Class<?>> classes = new HashSet<>();
-        java.util.jar.JarFile jarFile = new java.util.jar.JarFile(jarPath);
-
-        Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
-        while (entries.hasMoreElements()) {
-            java.util.jar.JarEntry entry = entries.nextElement();
-            String entryName = entry.getName();
-
-            if (entryName.endsWith(".class") && entryName.startsWith(packageName.replace('.', '/'))) {
-                String className = entryName.replace('/', '.').substring(0, entryName.length() - 6);
-                classes.add(Class.forName(className));
-            }
-        }
-        jarFile.close();
-        return classes;
     }
 
     /**

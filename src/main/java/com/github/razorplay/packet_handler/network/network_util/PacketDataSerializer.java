@@ -4,6 +4,7 @@ import com.github.razorplay.packet_handler.exceptions.PacketSerializationExcepti
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 
+import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -630,6 +631,8 @@ public class PacketDataSerializer {
 
     /**
      * Reads a custom serializable object from the input buffer.
+     * The provided class must implement CustomSerializable and have a no-args constructor.
+     * Accessibility is enforced via reflection, so the constructor need not be public.
      *
      * @param clazz The class of the custom serializable object
      * @param <T>   The type of the custom serializable object
@@ -640,7 +643,9 @@ public class PacketDataSerializer {
     public <T extends CustomSerializable> T readCustom(Class<T> clazz) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         try {
-            T instance = clazz.getDeclaredConstructor().newInstance();
+            Constructor<T> constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            T instance = constructor.newInstance();
             instance.deserialize(this);
             return instance;
         } catch (ReflectiveOperationException e) {

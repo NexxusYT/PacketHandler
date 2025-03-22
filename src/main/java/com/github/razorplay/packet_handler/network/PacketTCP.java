@@ -20,7 +20,7 @@ import java.util.Optional;
  */
 public class PacketTCP {
     public static final Logger LOGGER = LoggerFactory.getLogger("PacketTCP");
-    private static final BiMap<String, Class<? extends IPacket>> packetRegistry = HashBiMap.create();
+    public static final BiMap<String, Class<? extends IPacket>> PACKET_REGISTRY = HashBiMap.create();
 
     /**
      * Private constructor to prevent instantiation of utility class
@@ -36,29 +36,28 @@ public class PacketTCP {
      * @throws IllegalArgumentException if packetClasses is null or empty
      */
     public static void registerPackets(Class<? extends IPacket>... packetClasses) {
-        try {
-            if (packetClasses == null || packetClasses.length == 0) {
-                throw new IllegalArgumentException("Packet classes cannot be null or empty.");
+        if (packetClasses == null || packetClasses.length == 0) {
+            throw new IllegalArgumentException("Packet classes cannot be null or empty.");
+        }
+
+        for (Class<? extends IPacket> packetClass : packetClasses) {
+            if (!IPacket.class.isAssignableFrom(packetClass)) {
+                throw new PacketRegistrationException("Class " + packetClass.getName() + " does not implement IPacket.");
             }
 
-            for (Class<? extends IPacket> packetClass : packetClasses) {
-                if (!IPacket.class.isAssignableFrom(packetClass)) {
-                    LOGGER.warn("Class {} does not implement IPacket. Skipping.", packetClass.getName());
-                    continue;
-                }
-
+            try {
                 IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
                 String packetId = tempPacket.getPacketId();
 
-                if (packetRegistry.containsKey(packetId)) {
+                if (PACKET_REGISTRY.containsKey(packetId)) {
                     throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
                 }
 
                 registerPacket(packetId, packetClass);
                 LOGGER.info("Registered packet: {} with ID \"{}\"", packetClass.getSimpleName(), packetId);
+            } catch (ReflectiveOperationException e) {
+                throw new PacketRegistrationException("Failed to instantiate packet class " + packetClass.getName());
             }
-        } catch (Exception e) {
-            LOGGER.error("Packet registration exception:", e);
         }
     }
 
@@ -71,7 +70,7 @@ public class PacketTCP {
      * @throws IllegalArgumentException    if the packet class doesn't implement IPacket
      */
     public static void registerPacket(String id, Class<? extends IPacket> packetClass) {
-        if (packetRegistry.containsKey(id)) {
+        if (PACKET_REGISTRY.containsKey(id)) {
             throw new PacketRegistrationException("Packet ID \"" + id + "\" is already registered.");
         }
 
@@ -79,7 +78,7 @@ public class PacketTCP {
             throw new IllegalArgumentException("Class " + packetClass.getName() + " does not implement IPacket.");
         }
 
-        packetRegistry.put(id, packetClass);
+        PACKET_REGISTRY.put(id, packetClass);
     }
 
     /**
@@ -90,7 +89,7 @@ public class PacketTCP {
      * @throws PacketNotFoundException if the packet class is not registered
      */
     private static String getPacketType(IPacket packet) {
-        return Optional.ofNullable(packetRegistry.inverse().get(packet.getClass()))
+        return Optional.ofNullable(PACKET_REGISTRY.inverse().get(packet.getClass()))
                 .orElseThrow(() -> new PacketNotFoundException("Packet class not registered: " + packet.getClass().getName()));
     }
 
@@ -120,7 +119,7 @@ public class PacketTCP {
      */
     public static IPacket read(ByteArrayDataInput buf) throws PacketInstantiationException, PacketSerializationException {
         String packetType = buf.readUTF();
-        Class<? extends IPacket> packetClass = packetRegistry.get(packetType);
+        Class<? extends IPacket> packetClass = PACKET_REGISTRY.get(packetType);
 
         if (packetClass == null) {
             throw new PacketInstantiationException("Could not find packet with ID " + packetType, null);
@@ -133,6 +132,10 @@ public class PacketTCP {
             return packet;
         } catch (ReflectiveOperationException e) {
             throw new PacketInstantiationException("Error instantiating packet with ID " + packetType, e);
+        } catch (PacketSerializationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PacketSerializationException("Unexpected error deserializing packet with ID " + packetType, e);
         }
     }
 }

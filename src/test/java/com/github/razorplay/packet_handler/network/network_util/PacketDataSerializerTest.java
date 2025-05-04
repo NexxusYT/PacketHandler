@@ -325,7 +325,7 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testOptional() {
+    public void testOptional() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer dataSerializer = prepareSerializer(out);
 

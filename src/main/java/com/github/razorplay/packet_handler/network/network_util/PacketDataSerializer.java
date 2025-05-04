@@ -57,10 +57,18 @@ public class PacketDataSerializer {
      *
      * @return The byte value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public byte readByte() {
+    public byte readByte() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readByte();
+        try {
+            return input.readByte();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading byte", e);
+            }
+            throw new PacketSerializationException("Error reading byte", e);
+        }
     }
 
     /**
@@ -79,10 +87,18 @@ public class PacketDataSerializer {
      *
      * @return The short value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public short readShort() {
+    public short readShort() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readShort();
+        try {
+            return input.readShort();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading short", e);
+            }
+            throw new PacketSerializationException("Error reading short", e);
+        }
     }
 
     /**
@@ -161,10 +177,18 @@ public class PacketDataSerializer {
      *
      * @return The float value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public float readFloat() {
+    public float readFloat() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readFloat();
+        try {
+            return input.readFloat();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading float", e);
+            }
+            throw new PacketSerializationException("Error reading float", e);
+        }
     }
 
     /**
@@ -183,10 +207,18 @@ public class PacketDataSerializer {
      *
      * @return The double value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public double readDouble() {
+    public double readDouble() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readDouble();
+        try {
+            return input.readDouble();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading double", e);
+            }
+            throw new PacketSerializationException("Error reading double", e);
+        }
     }
 
     /**
@@ -205,10 +237,18 @@ public class PacketDataSerializer {
      *
      * @return The char value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public char readChar() {
+    public char readChar() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readChar();
+        try {
+            return input.readChar();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading char", e);
+            }
+            throw new PacketSerializationException("Error reading char", e);
+        }
     }
 
     /**
@@ -227,10 +267,18 @@ public class PacketDataSerializer {
      *
      * @return The boolean value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public boolean readBoolean() {
+    public boolean readBoolean() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readBoolean();
+        try {
+            return input.readBoolean();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading boolean", e);
+            }
+            throw new PacketSerializationException("Error reading boolean", e);
+        }
     }
 
     /**
@@ -552,7 +600,7 @@ public class PacketDataSerializer {
      * @return The Optional value read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Optional<T> readOptional(Function<PacketDataSerializer, T> valueReader) {
+    public <T> Optional<T> readOptional(Function<PacketDataSerializer, T> valueReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         boolean isPresent = readBoolean();
         return isPresent ? Optional.of(valueReader.apply(this)) : Optional.empty();
@@ -575,9 +623,7 @@ public class PacketDataSerializer {
     public void writeByteArray(byte[] bytes) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
         writeInt(bytes.length);
-        for (byte b : bytes) {
-            writeByte(b);
-        }
+        output.write(bytes);
     }
 
     /**

@@ -9,6 +9,8 @@ import com.google.common.io.ByteStreams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Random;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PacketTCPTest {
@@ -87,10 +89,10 @@ public class PacketTCPTest {
         PacketTCP.registerPackets(TestPacket.class);
 
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("TestPacket"); // Escribe el ID del paquete en formato writeUTF
         PacketDataSerializer serializer = new PacketDataSerializer(out);
-        serializer.writeString("TestPacket"); // Escribe el ID del paquete
-        serializer.writeShort((short) 4); // Prefijo de longitud del String (2 bytes), indica 4 bytes de datos
-        serializer.writeByte((byte) 0x01); // Solo 1 byte de datos, insuficiente
+        serializer.writeInt(4); // Longitud de la cadena (4 bytes)
+        out.write(0x01); // Solo 1 byte de datos, insuficiente
 
         ByteArrayDataInput in = ByteStreams.newDataInput(out.toByteArray());
         assertThrows(PacketSerializationException.class, () -> PacketTCP.read(in));
@@ -127,6 +129,92 @@ public class PacketTCPTest {
     @Test
     public void testRegisterPacketsWithEmptyArray() {
         assertThrows(IllegalArgumentException.class, () -> PacketTCP.registerPackets());
+    }
+
+    // Tests para compresión/descompresión
+
+    @Test
+    public void testCompressedEmptyPacket() throws PacketSerializationException, PacketInstantiationException {
+        PacketTCP.registerPackets(EmptyPacket.class);
+
+        EmptyPacket packet = new EmptyPacket();
+        byte[] compressedData = PacketTCP.writeCompressed(packet);
+
+        IPacket result = PacketTCP.readCompressed(compressedData);
+
+        assertTrue(result instanceof EmptyPacket);
+        assertEquals("EmptyPacket", result.getPacketId());
+    }
+
+    @Test
+    public void testCompressedCustomPacket() throws PacketSerializationException, PacketInstantiationException {
+        PacketTCP.registerPackets(TestPacket.class);
+
+        TestPacket original = new TestPacket("CompressedTestData");
+        byte[] compressedData = PacketTCP.writeCompressed(original);
+
+        IPacket result = PacketTCP.readCompressed(compressedData);
+
+        assertTrue(result instanceof TestPacket);
+        assertEquals("CompressedTestData", ((TestPacket) result).getData());
+    }
+
+    @Test
+    public void testCompressedLargePacket() throws PacketSerializationException, PacketInstantiationException {
+        PacketTCP.registerPackets(TestPacket.class);
+
+        // Usar un tamaño manejable que se beneficie de la compresión pero no exceda límites iniciales
+        StringBuilder largeData = new StringBuilder(50000);
+        for (int i = 0; i < 50000; i++) {
+            largeData.append('B');
+        }
+        TestPacket largePacket = new TestPacket(largeData.toString());
+        byte[] compressedData = PacketTCP.writeCompressed(largePacket);
+        byte[] uncompressedData = PacketTCP.write(largePacket);
+
+        // Verificar que los datos comprimidos son más pequeños
+        assertTrue(compressedData.length < uncompressedData.length, "Compressed data should be smaller than uncompressed");
+
+        IPacket result = PacketTCP.readCompressed(compressedData);
+
+        assertTrue(result instanceof TestPacket);
+        assertEquals(largeData.toString(), ((TestPacket) result).getData());
+    }
+
+    @Test
+    public void testCompressedPacketExceedsSizeLimit() throws PacketSerializationException {
+        PacketTCP.registerPackets(TestPacket.class);
+
+        // Generar datos aleatorios para minimizar la compresión
+        Random random = new Random();
+        StringBuilder largeData = new StringBuilder(2000000); // 2M caracteres
+        for (int i = 0; i < 2000000; i++) {
+            largeData.append((char) (random.nextInt(94) + 32)); // Caracteres imprimibles ASCII aleatorios
+        }
+        TestPacket largePacket = new TestPacket(largeData.toString());
+
+        assertThrows(PacketSerializationException.class, () -> {
+            PacketTCP.writeCompressed(largePacket);
+        });
+    }
+
+    @Test
+    public void testCorruptedCompressedData() throws PacketSerializationException {
+        PacketTCP.registerPackets(TestPacket.class);
+
+        // Crear datos comprimidos válidos
+        TestPacket packet = new TestPacket("TestData");
+        byte[] compressedData = PacketTCP.writeCompressed(packet);
+
+        // Corromper los datos (modificar un byte en el medio)
+        compressedData[compressedData.length / 2] = (byte) 0xFF;
+
+        assertThrows(PacketSerializationException.class, () -> PacketTCP.readCompressed(compressedData));
+    }
+
+    @Test
+    public void testWriteCompressedNullPacket() {
+        assertThrows(NullPointerException.class, () -> PacketTCP.writeCompressed(null));
     }
 }
 

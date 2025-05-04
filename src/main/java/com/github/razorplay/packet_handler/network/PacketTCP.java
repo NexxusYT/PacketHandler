@@ -12,15 +12,23 @@ import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Optional;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Handles TCP packet registration, serialization, and deserialization for network communication.
- * This utility class manages a registry of packet types and provides methods for packet handling.
+ * This utility class manages a registry of packet types and provides methods for packet handling,
+ * including support for compressed packets.
  */
 public class PacketTCP {
     public static final Logger LOGGER = LoggerFactory.getLogger("PacketTCP");
     public static final BiMap<String, Class<? extends IPacket>> PACKET_REGISTRY = HashBiMap.create();
+    public static final int MAX_COMPRESSED_SIZE = 1024 * 1024; // 1MB límite por defecto para paquetes comprimidos
 
     /**
      * Private constructor to prevent instantiation of utility class
@@ -110,6 +118,41 @@ public class PacketTCP {
     }
 
     /**
+     * Serializes a packet into a compressed byte array using GZIP
+     *
+     * @param packet The packet to serialize and compress
+     * @return byte array containing the compressed serialized packet data
+     * @throws PacketSerializationException if there's an error during serialization or compression
+     */
+    public static byte[] writeCompressed(IPacket packet) throws PacketSerializationException {
+        try {
+            // Serializar el paquete normalmente
+            ByteArrayDataOutput out = ByteStreams.newDataOutput();
+            String packetType = getPacketType(packet);
+            out.writeUTF(packetType);
+            PacketDataSerializer serializer = new PacketDataSerializer(out);
+            packet.write(serializer);
+            byte[] uncompressedData = out.toByteArray();
+
+            // Comprimir los datos
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
+                gzip.write(uncompressedData);
+            }
+            byte[] compressedData = baos.toByteArray();
+
+            // Verificar tamaño
+            if (compressedData.length > MAX_COMPRESSED_SIZE) {
+                throw new PacketSerializationException("Compressed packet size exceeds limit: " + compressedData.length + " bytes (max: " + MAX_COMPRESSED_SIZE + " bytes)");
+            }
+
+            return compressedData;
+        } catch (IOException e) {
+            throw new PacketSerializationException("Error compressing packet with ID " + getPacketType(packet), e);
+        }
+    }
+
+    /**
      * Deserializes a packet from a byte array input
      *
      * @param buf The input buffer containing the packet data
@@ -136,6 +179,36 @@ public class PacketTCP {
             throw e;
         } catch (Exception e) {
             throw new PacketSerializationException("Unexpected error deserializing packet with ID " + packetType, e);
+        }
+    }
+
+    /**
+     * Deserializes a packet from a compressed byte array input using GZIP
+     *
+     * @param compressedData The compressed input buffer containing the packet data
+     * @return The deserialized packet instance
+     * @throws PacketInstantiationException if there's an error creating the packet instance
+     * @throws PacketSerializationException if there's an error during deserialization or decompression
+     */
+    public static IPacket readCompressed(byte[] compressedData) throws PacketInstantiationException, PacketSerializationException {
+        try {
+            // Descomprimir los datos
+            ByteArrayInputStream bais = new ByteArrayInputStream(compressedData);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (GZIPInputStream gzip = new GZIPInputStream(bais)) {
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = gzip.read(buffer)) > 0) {
+                    baos.write(buffer, 0, len);
+                }
+            }
+            byte[] uncompressedData = baos.toByteArray();
+
+            // Deserializar el paquete
+            ByteArrayDataInput input = ByteStreams.newDataInput(uncompressedData);
+            return read(input);
+        } catch (IOException e) {
+            throw new PacketSerializationException("Error decompressing packet data", e);
         }
     }
 }

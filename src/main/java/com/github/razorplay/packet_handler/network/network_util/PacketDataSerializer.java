@@ -4,7 +4,10 @@ import com.github.razorplay.packet_handler.exceptions.PacketSerializationExcepti
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 
+import java.io.EOFException;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -98,10 +101,18 @@ public class PacketDataSerializer {
      *
      * @return The int value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public int readInt() {
+    public int readInt() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readInt();
+        try {
+            return input.readInt();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading int", e);
+            }
+            throw new PacketSerializationException("Error reading int", e);
+        }
     }
 
     /**
@@ -120,10 +131,18 @@ public class PacketDataSerializer {
      *
      * @return The long value read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public long readLong() {
+    public long readLong() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readLong();
+        try {
+            return input.readLong();
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading long", e);
+            }
+            throw new PacketSerializationException("Error reading long", e);
+        }
     }
 
     /**
@@ -215,25 +234,43 @@ public class PacketDataSerializer {
     }
 
     /**
-     * Writes a String value to the output buffer using UTF-8 encoding.
+     * Writes a String value to the output buffer.
+     * The length of the string's UTF-8 encoded bytes is written as an integer,
+     * followed by the raw bytes of the string.
      *
      * @param value The String value to write
      * @throws IllegalStateException if not in writing mode
      */
     public void writeString(String value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeUTF(value);
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        writeInt(bytes.length);
+        output.write(bytes);
     }
 
     /**
-     * Reads a String value from the input buffer using UTF-8 encoding.
+     * Reads a string from the input buffer.
      *
-     * @return The String value read
+     * @return The string read
      * @throws IllegalStateException if not in reading mode
+     * @throws PacketSerializationException if an error occurs during reading
      */
-    public String readString() {
+    public String readString() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        return input.readUTF();
+        int length = readInt();
+        if (length < 0) {
+            throw new PacketSerializationException("Invalid string length: " + length);
+        }
+        byte[] bytes = new byte[length];
+        try {
+            input.readFully(bytes);
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading string", e);
+            }
+            throw new PacketSerializationException("Error reading string", e);
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     /**
@@ -257,7 +294,7 @@ public class PacketDataSerializer {
      * @throws IllegalStateException    if the serializer is not in reading mode
      * @throws IllegalArgumentException if the enum name is invalid for the provided enum class
      */
-    public <T extends Enum<T>> T readEnum(Class<T> enumClass) {
+    public <T extends Enum<T>> T readEnum(Class<T> enumClass) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         String name = readString();
         if ("null".equals(name)) {
@@ -311,7 +348,7 @@ public class PacketDataSerializer {
      * @return The list read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> List<T> readList(Function<PacketDataSerializer, T> elementReader) {
+    public <T> List<T> readList(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
         List<T> list = new ArrayList<>(size);
@@ -362,7 +399,7 @@ public class PacketDataSerializer {
      * @return The set read from the input buffer, implemented as a {@link HashSet}
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Set<T> readSet(Function<PacketDataSerializer, T> elementReader) {
+    public <T> Set<T> readSet(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
         Set<T> set = new HashSet<>(size);
@@ -424,7 +461,7 @@ public class PacketDataSerializer {
      * @throws IllegalStateException if the serializer is not in reading mode
      */
     public <K, V> Map<K, V> readMap(Function<PacketDataSerializer, K> keyReader,
-                                    Function<PacketDataSerializer, V> valueReader) {
+                                    Function<PacketDataSerializer, V> valueReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
         Map<K, V> map = new HashMap<>(size);
@@ -470,7 +507,7 @@ public class PacketDataSerializer {
      * @return The UUID read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public UUID readUUID() {
+    public UUID readUUID() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         long mostSigBits = readLong();
         long leastSigBits = readLong();
@@ -557,12 +594,20 @@ public class PacketDataSerializer {
      * @return The byte array read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public byte[] readByteArray() {
+    public byte[] readByteArray() throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
-        int size = readInt();
-        byte[] bytes = new byte[size];
-        for (int i = 0; i < size; i++) {
-            bytes[i] = readByte();
+        int length = readInt();
+        if (length < 0) {
+            throw new PacketSerializationException("Invalid byte array length: " + length);
+        }
+        byte[] bytes = new byte[length];
+        try {
+            input.readFully(bytes);
+        } catch (Exception e) {
+            if (e instanceof EOFException) {
+                throw new PacketSerializationException("Unexpected end of input while reading byte array", e);
+            }
+            throw new PacketSerializationException("Error reading byte array", e);
         }
         return bytes;
     }
@@ -607,7 +652,7 @@ public class PacketDataSerializer {
      * @return The queue read from the input buffer, implemented as an {@link ArrayDeque}
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Queue<T> readQueue(Function<PacketDataSerializer, T> elementReader) {
+    public <T> Queue<T> readQueue(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
         Queue<T> queue = new ArrayDeque<>(size);

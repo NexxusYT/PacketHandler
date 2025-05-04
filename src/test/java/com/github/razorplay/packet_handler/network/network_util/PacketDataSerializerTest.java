@@ -1,5 +1,6 @@
 package com.github.razorplay.packet_handler.network.network_util;
 
+import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -24,7 +25,7 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testPrimitiveTypes() {
+    public void testPrimitiveTypes() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -42,7 +43,7 @@ public class PacketDataSerializerTest {
         serializer.writeDouble(Double.MAX_VALUE);
         serializer.writeDouble(Double.MIN_VALUE);
         serializer.writeChar(Character.MAX_VALUE); // '\uFFFF'
-        serializer.writeChar(Character.MIN_VALUE); // '\u0000'
+        serializer.writeChar(Character.MIN_VALUE); // ''
         serializer.writeBoolean(true);
         serializer.writeBoolean(false);
 
@@ -74,7 +75,7 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testString() {
+    public void testString() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -88,7 +89,7 @@ public class PacketDataSerializerTest {
             longStringBuilder.append('A');
         }
         String longString = longStringBuilder.toString();
-        serializer.writeString(longString); // Máximo permitido por UTF-8 en este contexto
+        serializer.writeString(longString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
@@ -98,11 +99,11 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testEnum() {
+    public void testEnum() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
-        // Normal, null, y caso inválido
+        // Normal, null
         serializer.writeEnum(TestEnum.VALUE1);
         serializer.writeEnum(null);
 
@@ -120,9 +121,9 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testList() {
+    public void testList() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         // Normal, vacío, y grande
         List<String> normalList = Arrays.asList("Apple", "Banana");
@@ -130,27 +131,51 @@ public class PacketDataSerializerTest {
         List<Integer> largeList = new ArrayList<>();
         for (int i = 0; i < 1000; i++) largeList.add(i);
 
-        serializer.writeList(normalList, PacketDataSerializer::writeString);
-        serializer.writeList(emptyList, PacketDataSerializer::writeString);
-        serializer.writeList(largeList, PacketDataSerializer::writeInt);
+        dataSerializer.writeList(normalList, PacketDataSerializer::writeString);
+        dataSerializer.writeList(emptyList, PacketDataSerializer::writeString);
+        dataSerializer.writeList(largeList, PacketDataSerializer::writeInt);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertEquals(normalList, deserializer.readList(PacketDataSerializer::readString));
-        assertEquals(emptyList, deserializer.readList(PacketDataSerializer::readString));
-        assertEquals(largeList, deserializer.readList(PacketDataSerializer::readInt));
+        assertEquals(normalList, deserializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(emptyList, deserializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(largeList, deserializer.readList(serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     @Test
-    public void testListOrder() {
+    public void testListOrder() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         List<String> original = Arrays.asList("A", "B", "C");
-        serializer.writeList(original, PacketDataSerializer::writeString);
+        dataSerializer.writeList(original, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        List<String> readList = deserializer.readList(PacketDataSerializer::readString);
+        List<String> readList = deserializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        });
         assertEquals(original, readList);
 
         // Verificar que un orden diferente falla
@@ -159,9 +184,9 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testSet() {
+    public void testSet() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         // Normal, vacío, con duplicados (ignorados por Set)
         Set<String> normalSet = new HashSet<>(Arrays.asList("One", "Two"));
@@ -169,19 +194,37 @@ public class PacketDataSerializerTest {
         Set<Integer> largeSet = new HashSet<>();
         for (int i = 0; i < 100; i++) largeSet.add(i);
 
-        serializer.writeSet(normalSet, PacketDataSerializer::writeString);
-        serializer.writeSet(emptySet, PacketDataSerializer::writeString);
-        serializer.writeSet(largeSet, PacketDataSerializer::writeInt);
+        dataSerializer.writeSet(normalSet, PacketDataSerializer::writeString);
+        dataSerializer.writeSet(emptySet, PacketDataSerializer::writeString);
+        dataSerializer.writeSet(largeSet, PacketDataSerializer::writeInt);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertEquals(normalSet, deserializer.readSet(PacketDataSerializer::readString));
-        assertEquals(emptySet, deserializer.readSet(PacketDataSerializer::readString));
-        assertEquals(largeSet, deserializer.readSet(PacketDataSerializer::readInt));
+        assertEquals(normalSet, deserializer.readSet(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(emptySet, deserializer.readSet(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(largeSet, deserializer.readSet(serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     @Test
-    public void testLargeByteArray() {
+    public void testLargeByteArray() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -194,9 +237,9 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testMap() {
+    public void testMap() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         // Normal, vacío, y grande
         Map<String, Integer> normalMap = new HashMap<>();
@@ -206,15 +249,51 @@ public class PacketDataSerializerTest {
         Map<Integer, String> largeMap = new HashMap<>();
         for (int i = 0; i < 100; i++) largeMap.put(i, "Value" + i);
 
-        serializer.writeMap(normalMap, PacketDataSerializer::writeString, PacketDataSerializer::writeInt);
-        serializer.writeMap(emptyMap, PacketDataSerializer::writeString, PacketDataSerializer::writeString);
-        serializer.writeMap(largeMap, PacketDataSerializer::writeInt, PacketDataSerializer::writeString);
+        dataSerializer.writeMap(normalMap, PacketDataSerializer::writeString, PacketDataSerializer::writeInt);
+        dataSerializer.writeMap(emptyMap, PacketDataSerializer::writeString, PacketDataSerializer::writeString);
+        dataSerializer.writeMap(largeMap, PacketDataSerializer::writeInt, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertEquals(normalMap, deserializer.readMap(PacketDataSerializer::readString, PacketDataSerializer::readInt));
-        assertEquals(emptyMap, deserializer.readMap(PacketDataSerializer::readString, PacketDataSerializer::readString));
-        assertEquals(largeMap, deserializer.readMap(PacketDataSerializer::readInt, PacketDataSerializer::readString));
+        assertEquals(normalMap, deserializer.readMap(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }, serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(emptyMap, deserializer.readMap(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }, serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(largeMap, deserializer.readMap(serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }, serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     @Test
@@ -229,7 +308,7 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testUUID() {
+    public void testUUID() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -248,26 +327,38 @@ public class PacketDataSerializerTest {
     @Test
     public void testOptional() {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         Optional<String> present = Optional.of("Present");
         Optional<String> empty = Optional.empty();
 
-        serializer.writeOptional(present, PacketDataSerializer::writeString);
-        serializer.writeOptional(empty, PacketDataSerializer::writeString);
+        dataSerializer.writeOptional(present, PacketDataSerializer::writeString);
+        dataSerializer.writeOptional(empty, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        Optional<String> readPresent = deserializer.readOptional(PacketDataSerializer::readString);
+        Optional<String> readPresent = deserializer.readOptional(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        });
         assertTrue(readPresent.isPresent());
         assertEquals("Present", readPresent.get());
 
-        Optional<String> readEmpty = deserializer.readOptional(PacketDataSerializer::readString);
+        Optional<String> readEmpty = deserializer.readOptional(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        });
         assertFalse(readEmpty.isPresent());
     }
 
     @Test
-    public void testByteArray() {
+    public void testByteArray() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -288,28 +379,46 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testQueue() {
+    public void testQueue() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         Queue<String> normalQueue = new ArrayDeque<>(Arrays.asList("First", "Second"));
         Queue<String> emptyQueue = new ArrayDeque<>();
         Queue<Integer> largeQueue = new ArrayDeque<>();
         for (int i = 0; i < 100; i++) largeQueue.add(i);
 
-        serializer.writeQueue(normalQueue, PacketDataSerializer::writeString);
-        serializer.writeQueue(emptyQueue, PacketDataSerializer::writeString);
-        serializer.writeQueue(largeQueue, PacketDataSerializer::writeInt);
+        dataSerializer.writeQueue(normalQueue, PacketDataSerializer::writeString);
+        dataSerializer.writeQueue(emptyQueue, PacketDataSerializer::writeString);
+        dataSerializer.writeQueue(largeQueue, PacketDataSerializer::writeInt);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertIterableEquals(normalQueue, deserializer.readQueue(PacketDataSerializer::readString));
-        assertIterableEquals(emptyQueue, deserializer.readQueue(PacketDataSerializer::readString));
-        assertIterableEquals(largeQueue, deserializer.readQueue(PacketDataSerializer::readInt));
+        assertIterableEquals(normalQueue, deserializer.readQueue(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertIterableEquals(emptyQueue, deserializer.readQueue(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertIterableEquals(largeQueue, deserializer.readQueue(serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     @Test
-    public void testCustomSerializable() throws Exception {
+    public void testCustomSerializable() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
 
@@ -352,7 +461,7 @@ public class PacketDataSerializerTest {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeByte(0x01); // Solo 1 byte, un int necesita 4
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        assertThrows(RuntimeException.class, deserializer::readInt); // Puede ser EOFException u otra dependiendo de la implementación
+        assertThrows(PacketSerializationException.class, deserializer::readInt);
     }
 
     @Test
@@ -361,16 +470,15 @@ public class PacketDataSerializerTest {
         ByteArrayDataOutput outLong = ByteStreams.newDataOutput();
         outLong.writeInt(0x1234); // Solo 4 bytes
         PacketDataSerializer deserializerLong = prepareDeserializer(outLong.toByteArray());
-        assertThrows(RuntimeException.class, deserializerLong::readLong);
+        assertThrows(PacketSerializationException.class, deserializerLong::readLong);
 
-        // Datos inválidos para UTF-8
+        // Datos insuficientes para string
         ByteArrayDataOutput outString = ByteStreams.newDataOutput();
-        outString.writeShort(3); // Longitud
-        outString.writeByte(0xFF); // Byte inválido para UTF-8
-        outString.writeByte(0xFF);
-        outString.writeByte(0xFF);
+        PacketDataSerializer serializerString = prepareSerializer(outString);
+        serializerString.writeInt(3); // Longitud de 3 bytes
+        outString.writeByte(0x41); // Solo 1 byte en lugar de 3
         PacketDataSerializer deserializerString = prepareDeserializer(outString.toByteArray());
-        assertThrows(Exception.class, deserializerString::readString); // Puede ser UTFDataFormatException
+        assertThrows(PacketSerializationException.class, deserializerString::readString);
     }
 
     @Test
@@ -414,7 +522,13 @@ public class PacketDataSerializerTest {
         assertThrows(IllegalStateException.class, writeSerializer::readByte);
         assertThrows(IllegalStateException.class, writeSerializer::readString);
         assertThrows(IllegalStateException.class, writeSerializer::readInt);
-        assertThrows(IllegalStateException.class, () -> writeSerializer.readList(PacketDataSerializer::readString), "Reading list in write mode");
+        assertThrows(IllegalStateException.class, () -> writeSerializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }), "Reading list in write mode");
 
         // Escribir en modo lectura
         assertThrows(IllegalStateException.class, () -> readSerializer.writeByte((byte) 1));
@@ -424,37 +538,55 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void testListEdgeCases() {
+    public void testListEdgeCases() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
-        // Lista vacía (ya cubierta, pero explícita)
+        // Lista vacía
         List<String> emptyList = Collections.emptyList();
-        serializer.writeList(emptyList, PacketDataSerializer::writeString);
+        dataSerializer.writeList(emptyList, PacketDataSerializer::writeString);
 
         // Lista con un solo elemento
         List<String> singleList = Collections.singletonList("Single");
-        serializer.writeList(singleList, PacketDataSerializer::writeString);
+        dataSerializer.writeList(singleList, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        assertEquals(emptyList, deserializer.readList(PacketDataSerializer::readString));
-        assertEquals(singleList, deserializer.readList(PacketDataSerializer::readString));
+        assertEquals(emptyList, deserializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+        assertEquals(singleList, deserializer.readList(serializer -> {
+            try {
+                return serializer.readString();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     @Test
-    public void testPerformance() {
+    public void testPerformance() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        PacketDataSerializer serializer = prepareSerializer(out);
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
 
         long startTime = System.nanoTime();
         List<Integer> largeList = new ArrayList<>();
         for (int i = 0; i < 10000; i++) largeList.add(i);
-        serializer.writeList(largeList, PacketDataSerializer::writeInt);
+        dataSerializer.writeList(largeList, PacketDataSerializer::writeInt);
         long writeTime = System.nanoTime() - startTime;
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
         startTime = System.nanoTime();
-        deserializer.readList(PacketDataSerializer::readInt);
+        deserializer.readList(serializer -> {
+            try {
+                return serializer.readInt();
+            } catch (PacketSerializationException e) {
+                throw new RuntimeException(e);
+            }
+        });
         long readTime = System.nanoTime() - startTime;
 
         System.out.printf("Write time: %d ns, Read time: %d ns%n", writeTime, readTime);
@@ -486,7 +618,7 @@ class TestCustomObject implements CustomSerializable {
     }
 
     @Override
-    public void deserialize(PacketDataSerializer serializer) {
+    public void deserialize(PacketDataSerializer serializer) throws PacketSerializationException {
         this.intValue = serializer.readInt();
         this.stringValue = serializer.readString();
     }

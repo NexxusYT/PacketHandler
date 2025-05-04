@@ -99,6 +99,17 @@ public class PacketDataSerializerTest {
     }
 
     @Test
+    public void testCorruptedDataPrimitives() {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeByte(0x01); // Solo 1 byte, insuficiente para short, float, etc.
+        PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+        assertThrows(PacketSerializationException.class, deserializer::readShort);
+        assertThrows(PacketSerializationException.class, deserializer::readFloat);
+        assertThrows(PacketSerializationException.class, deserializer::readDouble);
+        assertThrows(PacketSerializationException.class, deserializer::readChar);
+    }
+
+    @Test
     public void testEnum() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);

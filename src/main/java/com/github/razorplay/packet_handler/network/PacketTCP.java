@@ -127,12 +127,7 @@ public class PacketTCP {
     public static byte[] writeCompressed(IPacket packet) throws PacketSerializationException {
         try {
             // Serializar el paquete normalmente
-            ByteArrayDataOutput out = ByteStreams.newDataOutput();
-            String packetType = getPacketType(packet);
-            out.writeUTF(packetType);
-            PacketDataSerializer serializer = new PacketDataSerializer(out);
-            packet.write(serializer);
-            byte[] uncompressedData = out.toByteArray();
+            byte[] uncompressedData = write(packet);
 
             // Comprimir los datos
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

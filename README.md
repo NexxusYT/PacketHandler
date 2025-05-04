@@ -65,8 +65,7 @@ This project is licensed under the Mozilla Public License 2.0.
 
 ## Contact
 
-For questions, issues, or suggestions, please open an issue on the [GitHub repository](https://github.com/razorplay/minecraft-packet-handler) or contact the maintainer at [your-email@example.com].
-
+For questions, issues, or suggestions, please open an issue on the [GitHub repository](https://github.com/RazorPlay01/PacketHandler)
 ---
 
 *Built with ❤️ for the Minecraft community.*

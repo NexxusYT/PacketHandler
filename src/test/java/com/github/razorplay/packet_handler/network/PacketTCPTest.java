@@ -9,9 +9,6 @@ import com.google.common.io.ByteStreams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.EOFException;
-import java.io.UTFDataFormatException;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PacketTCPTest {

@@ -110,6 +110,19 @@ public class PacketDataSerializerTest {
     }
 
     @Test
+    public void testCorruptedDataPrimitivesEmpty() {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        // Buffer vacío
+        PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+        assertThrows(PacketSerializationException.class, deserializer::readByte);
+        assertThrows(PacketSerializationException.class, deserializer::readBoolean);
+        assertThrows(PacketSerializationException.class, deserializer::readShort);
+        assertThrows(PacketSerializationException.class, deserializer::readFloat);
+        assertThrows(PacketSerializationException.class, deserializer::readDouble);
+        assertThrows(PacketSerializationException.class, deserializer::readChar);
+    }
+
+    @Test
     public void testEnum() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
@@ -128,7 +141,7 @@ public class PacketDataSerializerTest {
         PacketDataSerializer serializerInvalid = prepareSerializer(outInvalid);
         serializerInvalid.writeString("INVALID_VALUE"); // No existe en TestEnum
         PacketDataSerializer deserializerInvalid = prepareDeserializer(outInvalid.toByteArray());
-        assertThrows(IllegalArgumentException.class, () -> deserializerInvalid.readEnum(TestEnum.class));
+        assertThrows(PacketSerializationException.class, () -> deserializerInvalid.readEnum(TestEnum.class));
     }
 
     @Test
@@ -147,28 +160,9 @@ public class PacketDataSerializerTest {
         dataSerializer.writeList(largeList, PacketDataSerializer::writeInt);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-
-        assertEquals(normalList, deserializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(emptyList, deserializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(largeList, deserializer.readList(serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        assertEquals(normalList, deserializer.readList(PacketDataSerializer::readString));
+        assertEquals(emptyList, deserializer.readList(PacketDataSerializer::readString));
+        assertEquals(largeList, deserializer.readList(PacketDataSerializer::readInt));
     }
 
     @Test
@@ -180,13 +174,7 @@ public class PacketDataSerializerTest {
         dataSerializer.writeList(original, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        List<String> readList = deserializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        List<String> readList = deserializer.readList(PacketDataSerializer::readString);
         assertEquals(original, readList);
 
         // Verificar que un orden diferente falla
@@ -211,27 +199,9 @@ public class PacketDataSerializerTest {
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertEquals(normalSet, deserializer.readSet(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(emptySet, deserializer.readSet(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(largeSet, deserializer.readSet(serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        assertEquals(normalSet, deserializer.readSet(PacketDataSerializer::readString));
+        assertEquals(emptySet, deserializer.readSet(PacketDataSerializer::readString));
+        assertEquals(largeSet, deserializer.readSet(PacketDataSerializer::readInt));
     }
 
     @Test
@@ -266,45 +236,9 @@ public class PacketDataSerializerTest {
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertEquals(normalMap, deserializer.readMap(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }, serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(emptyMap, deserializer.readMap(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }, serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(largeMap, deserializer.readMap(serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }, serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        assertEquals(normalMap, deserializer.readMap(PacketDataSerializer::readString, PacketDataSerializer::readInt));
+        assertEquals(emptyMap, deserializer.readMap(PacketDataSerializer::readString, PacketDataSerializer::readString));
+        assertEquals(largeMap, deserializer.readMap(PacketDataSerializer::readInt, PacketDataSerializer::readString));
     }
 
     @Test
@@ -348,23 +282,12 @@ public class PacketDataSerializerTest {
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        Optional<String> readPresent = deserializer.readOptional(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        Optional<String> readPresent = deserializer.readOptional(PacketDataSerializer::readString);
         assertTrue(readPresent.isPresent());
         assertEquals("Present", readPresent.get());
 
-        Optional<String> readEmpty = deserializer.readOptional(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        });
+
+        Optional<String> readEmpty = deserializer.readOptional(PacketDataSerializer::readString);
         assertFalse(readEmpty.isPresent());
     }
 
@@ -405,27 +328,9 @@ public class PacketDataSerializerTest {
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
-        assertIterableEquals(normalQueue, deserializer.readQueue(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertIterableEquals(emptyQueue, deserializer.readQueue(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertIterableEquals(largeQueue, deserializer.readQueue(serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        assertIterableEquals(normalQueue, deserializer.readQueue(PacketDataSerializer::readString));
+        assertIterableEquals(emptyQueue, deserializer.readQueue(PacketDataSerializer::readString));
+        assertIterableEquals(largeQueue, deserializer.readQueue(PacketDataSerializer::readInt));
     }
 
     @Test
@@ -533,13 +438,7 @@ public class PacketDataSerializerTest {
         assertThrows(IllegalStateException.class, writeSerializer::readByte);
         assertThrows(IllegalStateException.class, writeSerializer::readString);
         assertThrows(IllegalStateException.class, writeSerializer::readInt);
-        assertThrows(IllegalStateException.class, () -> writeSerializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }), "Reading list in write mode");
+        assertThrows(IllegalStateException.class, () -> writeSerializer.readList(PacketDataSerializer::readString), "Reading list in write mode");
 
         // Escribir en modo lectura
         assertThrows(IllegalStateException.class, () -> readSerializer.writeByte((byte) 1));
@@ -562,20 +461,8 @@ public class PacketDataSerializerTest {
         dataSerializer.writeList(singleList, PacketDataSerializer::writeString);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        assertEquals(emptyList, deserializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
-        assertEquals(singleList, deserializer.readList(serializer -> {
-            try {
-                return serializer.readString();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        }));
+        assertEquals(emptyList, deserializer.readList(PacketDataSerializer::readString));
+        assertEquals(singleList, deserializer.readList(PacketDataSerializer::readString));
     }
 
     @Test
@@ -591,16 +478,40 @@ public class PacketDataSerializerTest {
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
         startTime = System.nanoTime();
-        deserializer.readList(serializer -> {
-            try {
-                return serializer.readInt();
-            } catch (PacketSerializationException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        deserializer.readList(PacketDataSerializer::readInt);
         long readTime = System.nanoTime() - startTime;
 
         System.out.printf("Write time: %d ns, Read time: %d ns%n", writeTime, readTime);
+    }
+
+    @Test
+    public void testNullable() throws PacketSerializationException {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        PacketDataSerializer serializer = prepareSerializer(out);
+
+        // Casos: valor presente, nulo
+        String presentValue = "Present";
+        String nullValue = null;
+
+        serializer.writeNullable(presentValue, PacketDataSerializer::writeString);
+        serializer.writeNullable(nullValue, PacketDataSerializer::writeString);
+
+        PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+
+        String readPresent = deserializer.readNullable(PacketDataSerializer::readString);
+        assertEquals("Present", readPresent);
+
+        String readNull = deserializer.readNullable(PacketDataSerializer::readString);
+        assertNull(readNull);
+
+        // Probar datos corruptos (buffer insuficiente para la cadena)
+        ByteArrayDataOutput outCorrupted = ByteStreams.newDataOutput();
+        PacketDataSerializer serializerCorrupted = prepareSerializer(outCorrupted);
+        serializerCorrupted.writeBoolean(true); // Indica valor presente
+        serializerCorrupted.writeInt(3); // Longitud de 3 bytes
+        outCorrupted.writeByte(0x41); // Solo 1 byte en lugar de 3
+        PacketDataSerializer deserializerCorrupted = prepareDeserializer(outCorrupted.toByteArray());
+        assertThrows(PacketSerializationException.class, () -> deserializerCorrupted.readNullable(PacketDataSerializer::readString));
     }
 }
 

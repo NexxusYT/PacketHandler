@@ -9,7 +9,6 @@ import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 /**
  * Utility class for advanced serialization and deserialization of complex data types,
@@ -55,7 +54,7 @@ public class PacketDataSerializer {
      * Reads a byte value from the input buffer.
      *
      * @return The byte value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public byte readByte() throws PacketSerializationException {
@@ -85,7 +84,7 @@ public class PacketDataSerializer {
      * Reads a short value from the input buffer.
      *
      * @return The short value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public short readShort() throws PacketSerializationException {
@@ -115,7 +114,7 @@ public class PacketDataSerializer {
      * Reads an int value from the input buffer.
      *
      * @return The int value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public int readInt() throws PacketSerializationException {
@@ -145,7 +144,7 @@ public class PacketDataSerializer {
      * Reads a long value from the input buffer.
      *
      * @return The long value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public long readLong() throws PacketSerializationException {
@@ -175,7 +174,7 @@ public class PacketDataSerializer {
      * Reads a float value from the input buffer.
      *
      * @return The float value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public float readFloat() throws PacketSerializationException {
@@ -205,7 +204,7 @@ public class PacketDataSerializer {
      * Reads a double value from the input buffer.
      *
      * @return The double value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public double readDouble() throws PacketSerializationException {
@@ -235,7 +234,7 @@ public class PacketDataSerializer {
      * Reads a char value from the input buffer.
      *
      * @return The char value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public char readChar() throws PacketSerializationException {
@@ -265,7 +264,7 @@ public class PacketDataSerializer {
      * Reads a boolean value from the input buffer.
      *
      * @return The boolean value read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public boolean readBoolean() throws PacketSerializationException {
@@ -299,7 +298,7 @@ public class PacketDataSerializer {
      * Reads a string from the input buffer.
      *
      * @return The string read
-     * @throws IllegalStateException if not in reading mode
+     * @throws IllegalStateException        if not in reading mode
      * @throws PacketSerializationException if an error occurs during reading
      */
     public String readString() throws PacketSerializationException {
@@ -350,7 +349,7 @@ public class PacketDataSerializer {
         try {
             return Enum.valueOf(enumClass, name);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid enum value '" + name + "' for " + enumClass.getSimpleName(), e);
+            throw new PacketSerializationException("Invalid enum value '" + name + "' for " + enumClass.getSimpleName(), e);
         }
     }
 
@@ -395,9 +394,12 @@ public class PacketDataSerializer {
      * @return The list read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> List<T> readList(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
+    public <T> List<T> readList(ThrowingFunction<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
+        if (size < 0) {
+            throw new PacketSerializationException("Invalid list size: " + size);
+        }
         List<T> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             list.add(elementReader.apply(this));
@@ -446,9 +448,12 @@ public class PacketDataSerializer {
      * @return The set read from the input buffer, implemented as a {@link HashSet}
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Set<T> readSet(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
+    public <T> Set<T> readSet(ThrowingFunction<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
+        if (size < 0) {
+            throw new PacketSerializationException("Invalid set size: " + size);
+        }
         Set<T> set = new HashSet<>(size);
         for (int i = 0; i < size; i++) {
             set.add(elementReader.apply(this));
@@ -507,10 +512,13 @@ public class PacketDataSerializer {
      * @return The map read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <K, V> Map<K, V> readMap(Function<PacketDataSerializer, K> keyReader,
-                                    Function<PacketDataSerializer, V> valueReader) throws PacketSerializationException {
+    public <K, V> Map<K, V> readMap(ThrowingFunction<PacketDataSerializer, K> keyReader,
+                                    ThrowingFunction<PacketDataSerializer, V> valueReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
+        if (size < 0) {
+            throw new PacketSerializationException("Invalid map size: " + size);
+        }
         Map<K, V> map = new HashMap<>(size);
         for (int i = 0; i < size; i++) {
             K key = keyReader.apply(this);
@@ -519,6 +527,7 @@ public class PacketDataSerializer {
         }
         return map;
     }
+
 
     /**
      * Writes a UUID to the output buffer.
@@ -599,7 +608,7 @@ public class PacketDataSerializer {
      * @return The Optional value read from the input buffer
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Optional<T> readOptional(Function<PacketDataSerializer, T> valueReader) throws PacketSerializationException {
+    public <T> Optional<T> readOptional(ThrowingFunction<PacketDataSerializer, T> valueReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         boolean isPresent = readBoolean();
         return isPresent ? Optional.of(valueReader.apply(this)) : Optional.empty();
@@ -697,14 +706,65 @@ public class PacketDataSerializer {
      * @return The queue read from the input buffer, implemented as an {@link ArrayDeque}
      * @throws IllegalStateException if the serializer is not in reading mode
      */
-    public <T> Queue<T> readQueue(Function<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
+    public <T> Queue<T> readQueue(ThrowingFunction<PacketDataSerializer, T> elementReader) throws PacketSerializationException {
         if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
         int size = readInt();
+        if (size < 0) {
+            throw new PacketSerializationException("Invalid queue size: " + size);
+        }
         Queue<T> queue = new ArrayDeque<>(size);
         for (int i = 0; i < size; i++) {
             queue.add(elementReader.apply(this));
         }
         return queue;
+    }
+
+    /**
+     * Writes a nullable value to the output buffer using the provided value writer.
+     * A boolean is written first to indicate whether the value is present (true) or null (false).
+     * If the value is not null, it is serialized using the provided {@code valueWriter}.
+     * <p>
+     * Example usage:
+     * <pre>
+     * String nickname = "Alice";
+     * serializer.writeNullable(nickname, PacketDataSerializer::writeString);
+     * serializer.writeNullable(null, PacketDataSerializer::writeString);
+     * </pre>
+     *
+     * @param value       The nullable value to write to the output buffer
+     * @param valueWriter The writer function for serializing the value, if not null
+     * @param <T>         The type of the value
+     * @throws IllegalStateException if the serializer is not in writing mode
+     */
+    public <T> void writeNullable(T value, BiConsumer<PacketDataSerializer, T> valueWriter) {
+        if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
+        writeBoolean(value != null);
+        if (value != null) {
+            valueWriter.accept(this, value);
+        }
+    }
+
+    /**
+     * Reads a nullable value from the input buffer using the provided value reader.
+     * A boolean is read first to determine whether the value is present (true) or null (false).
+     * If the value is present, it is deserialized using the provided {@code valueReader}; otherwise, null is returned.
+     * <p>
+     * Example usage:
+     * <pre>
+     * String nickname = serializer.readNullable(PacketDataSerializer::readString);
+     * // nickname will be the deserialized value or null
+     * </pre>
+     *
+     * @param valueReader The reader function for deserializing the value, if present
+     * @param <T>         The type of the value
+     * @return The nullable value read from the input buffer, or null if no value was written
+     * @throws IllegalStateException        if the serializer is not in reading mode
+     * @throws PacketSerializationException if an error occurs during deserialization
+     */
+    public <T> T readNullable(ThrowingFunction<PacketDataSerializer, T> valueReader) throws PacketSerializationException {
+        if (isNotReading()) throw new IllegalStateException(NOT_READING_ERROR);
+        boolean isPresent = readBoolean();
+        return isPresent ? valueReader.apply(this) : null;
     }
 
     /**
@@ -714,9 +774,13 @@ public class PacketDataSerializer {
      * @param <T>    The type of the custom serializable object
      * @throws IllegalStateException if not in writing mode
      */
-    public <T extends CustomSerializable> void writeCustom(T object) {
+    public <T extends CustomSerializable> void writeCustom(T object) throws PacketSerializationException {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        object.serialize(this);
+        try {
+            object.serialize(this);
+        } catch (Exception e) {
+            throw new PacketSerializationException("Failed to serialize custom object", e);
+        }
     }
 
     /**

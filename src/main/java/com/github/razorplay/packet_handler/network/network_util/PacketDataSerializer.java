@@ -774,13 +774,9 @@ public class PacketDataSerializer {
      * @param <T>    The type of the custom serializable object
      * @throws IllegalStateException if not in writing mode
      */
-    public <T extends CustomSerializable> void writeCustom(T object) throws PacketSerializationException {
+    public <T extends CustomSerializable> void writeCustom(T object) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        try {
-            object.serialize(this);
-        } catch (Exception e) {
-            throw new PacketSerializationException("Failed to serialize custom object", e);
-        }
+        object.serialize(this);
     }
 
     /**

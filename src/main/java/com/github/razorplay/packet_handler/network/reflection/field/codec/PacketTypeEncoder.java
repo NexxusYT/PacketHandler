@@ -1,7 +1,8 @@
-package com.github.razorplay.packet_handler.network.reflection.field.encoder;
+package com.github.razorplay.packet_handler.network.reflection.field.codec;
 
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
+import com.github.razorplay.packet_handler.network.reflection.field.GenericTypeAction;
 
 /**
  * Functional interface representing an encoder that serializes objects
@@ -10,7 +11,7 @@ import com.github.razorplay.packet_handler.network.network_util.PacketDataSerial
  * @param <T> the type of object to encode.
  */
 @FunctionalInterface
-public interface PacketTypeEncoder<T> {
+public interface PacketTypeEncoder<T> extends GenericTypeAction<T> {
 
     /**
      * Encodes the given value using the provided {@link PacketDataSerializer}.

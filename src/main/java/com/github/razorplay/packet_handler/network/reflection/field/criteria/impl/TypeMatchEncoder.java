@@ -1,7 +1,7 @@
 package com.github.razorplay.packet_handler.network.reflection.field.criteria.impl;
 
+import com.github.razorplay.packet_handler.network.reflection.field.codec.PacketTypeEncoder;
 import com.github.razorplay.packet_handler.network.reflection.field.criteria.PrioritizedFieldEncoder;
-import com.github.razorplay.packet_handler.network.reflection.field.encoder.PacketTypeEncoder;
 
 /**
  * A convenience encoder that applies the provided {@link PacketTypeEncoder} to fields

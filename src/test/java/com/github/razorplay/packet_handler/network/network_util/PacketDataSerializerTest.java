@@ -547,7 +547,7 @@ public class PacketDataSerializerTest {
     }
 
     @Test
-    public void reflectionSerializer() throws PacketSerializationException {
+    public void reflectionSerializer() throws PacketSerializationException, NoSuchMethodException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
 
         PacketDataSerializer serializer = prepareSerializer(out);
@@ -556,9 +556,10 @@ public class PacketDataSerializerTest {
         PacketClassSerializer.serialize(customObject, serializer);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+        TestCustomObject deserializedObject = PacketClassSerializer.deserialize(deserializer, TestCustomObject.class);
 
-        assertEquals(42, deserializer.readInt());
-        assertEquals("Test", deserializer.readString());
+        assertEquals(customObject.intValue, deserializedObject.intValue);
+        assertEquals(customObject.stringValue, deserializedObject.stringValue);
     }
 }
 
@@ -566,9 +567,6 @@ public class PacketDataSerializerTest {
 class TestCustomObject implements CustomSerializable {
     int intValue;
     String stringValue;
-
-    public TestCustomObject() {
-    }
 
     public TestCustomObject(int intValue, String stringValue) {
         this.intValue = intValue;

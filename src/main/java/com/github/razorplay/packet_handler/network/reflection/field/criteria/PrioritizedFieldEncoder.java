@@ -1,11 +1,12 @@
 package com.github.razorplay.packet_handler.network.reflection.field.criteria;
 
-import com.github.razorplay.packet_handler.network.reflection.field.encoder.FieldEncoderResolver;
-import com.github.razorplay.packet_handler.network.reflection.field.encoder.PacketTypeEncoder;
+import com.github.razorplay.packet_handler.network.reflection.field.FieldPredicate;
+import com.github.razorplay.packet_handler.network.reflection.field.codec.PacketTypeEncoder;
+import com.github.razorplay.packet_handler.network.reflection.field.codec.resolver.FieldEncoderResolver;
 import lombok.Getter;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
+import java.lang.reflect.AnnotatedElement;
 
 /**
  * A composite encoder that associates a {@link FieldPredicate} with a corresponding
@@ -55,7 +56,7 @@ public abstract class PrioritizedFieldEncoder<T> implements FieldPredicate, Fiel
      * @return {@code true} if the field matches, {@code false} otherwise.
      */
     @Override
-    public boolean matches(Field field, Class<?> unwrappedType, @Nullable Object value) {
+    public boolean matches(AnnotatedElement field, Class<?> unwrappedType, @Nullable Object value) {
         return fieldMatch.matches(field, unwrappedType, value);
     }
 
@@ -66,7 +67,7 @@ public abstract class PrioritizedFieldEncoder<T> implements FieldPredicate, Fiel
      * @return the corresponding {@link PacketTypeEncoder} for the field.
      */
     @Override
-    public PacketTypeEncoder<T> retrieve(Field field) {
-        return fieldSerializerGetter.retrieve(field);
+    public PacketTypeEncoder<T> get(AnnotatedElement field) {
+        return fieldSerializerGetter.get(field);
     }
 }

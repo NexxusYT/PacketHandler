@@ -3,10 +3,11 @@ package com.github.razorplay.packet_handler.network.reflection;
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.network_util.CustomSerializable;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
-import com.github.razorplay.packet_handler.network.reflection.field.PacketTypeSerializer;
-import com.github.razorplay.packet_handler.network.reflection.field.encoder.PacketTypeEncoder;
+import com.github.razorplay.packet_handler.network.reflection.field.codec.PacketTypeEncoder;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Parameter;
 
 public final class PacketClassSerializer {
 
@@ -50,6 +51,28 @@ public final class PacketClassSerializer {
             if (declaredField.isSynthetic()) continue;
 
             encodeField(writer, object, declaredField);
+        }
+    }
+
+    public static <T> T deserialize(PacketDataSerializer reader, Class<T> packetClass) throws PacketSerializationException, NoSuchMethodException {
+        Constructor<?>[] constructors = packetClass.getDeclaredConstructors();
+        Constructor<?> constructor = constructors.length == 0
+                ? packetClass.getDeclaredConstructor()
+                : constructors[0];
+
+        constructor.setAccessible(true);
+        Object[] parameters = new Object[constructor.getParameterCount()];
+
+        int count = 0;
+        for (Parameter parameter : constructor.getParameters()) {
+            if (parameter.isSynthetic()) continue;
+            parameters[count++] = PacketTypeSerializer.getDecoder(parameter, parameter.getType()).decode(reader);
+        }
+
+        try {
+            return (T) constructor.newInstance(parameters);
+        } catch (ReflectiveOperationException e) {
+            throw new PacketSerializationException("Failed to instantiate custom object", e);
         }
     }
 }

@@ -1,7 +1,7 @@
-package com.github.razorplay.packet_handler.network.reflection.field.criteria;
+package com.github.razorplay.packet_handler.network.reflection.field;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Field;
+import java.lang.reflect.AnnotatedElement;
 
 /**
  * Functional interface for matching fields based on custom criteria,
@@ -18,5 +18,5 @@ public interface FieldPredicate {
      * @param value         the runtime value of the field (maybe {@code null}).
      * @return {@code true} if the field matches the criteria, {@code false} otherwise.
      */
-    boolean matches(Field field, Class<?> unwrappedType, @Nullable Object value);
+    boolean matches(AnnotatedElement field, Class<?> unwrappedType, @Nullable Object value);
 }

@@ -129,7 +129,7 @@ public class PacketTypeSerializer {
 
     /**
      * Retrieves the cached {@link PacketTypeEncoder} for the specified field if present;
-     * otherwise, finds the appropriate encoder using {@code findEncoder}, caches it, and returns it.
+     * otherwise, finds the appropriate encoder using {@code getEncoderWithTransformers}, caches it, and returns it.
      *
      * <p>This method may throw a {@link PacketSerializationException} if no suitable encoder
      * is found for the given field. Internally, this method uses a cache to avoid redundant encoder lookups for the same field.</p>
@@ -143,7 +143,7 @@ public class PacketTypeSerializer {
         try {
             return CACHED_ENCODERS.computeIfAbsent(field, f -> {
                 try {
-                    return PacketTypeSerializer.findEncoder(f, object);
+                    return PacketTypeSerializer.getEncoderWithTransformers(f, object);
                 } catch (PacketSerializationException e) {
                     throw new RuntimeException(e);
                 }

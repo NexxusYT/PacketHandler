@@ -1,8 +1,10 @@
-plugins {
+ plugins {
     id 'java'
     id 'jacoco'
     id 'jacoco-report-aggregation'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    
+    id 'maven-publish'
 }
 
 group = 'com.github.razorplay.packet_handler'
@@ -54,4 +56,16 @@ test {
 }
 jacocoTestReport {
     dependsOn test // tests are required to run before generating the report
+}
+
+publishing {
+
+    publications {
+        create("mavenJava", MavenPublication) {
+            groupId = 'com.github.RazorPlay01'
+            artifactId = 'PacketHandler'
+
+            from components.java
+        }
+    }
 }

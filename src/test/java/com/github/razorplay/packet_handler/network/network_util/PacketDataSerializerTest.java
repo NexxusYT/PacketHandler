@@ -292,6 +292,32 @@ public class PacketDataSerializerTest {
     }
 
     @Test
+    public void testOptionalList() throws PacketSerializationException {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        PacketDataSerializer dataSerializer = prepareSerializer(out);
+
+        List<String> testingList = new ArrayList<>();
+        testingList.add("One");
+        testingList.add("Two");
+
+        Optional<List<String>> optionalList = Optional.of(testingList);
+        dataSerializer.writeOptional(optionalList, (serializer, list) ->
+                serializer.writeList(list, PacketDataSerializer::writeString)
+        );
+
+        PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+        Optional<List<String>> readOptionalList = deserializer.readOptional(serializer ->
+                serializer.readList(PacketDataSerializer::readString)
+        );
+
+        assertTrue(readOptionalList.isPresent());
+
+        assertEquals(2, readOptionalList.get().size());
+        assertEquals("One", readOptionalList.get().get(0));
+        assertEquals("Two", readOptionalList.get().get(1));
+    }
+
+    @Test
     public void testByteArray() throws PacketSerializationException {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         PacketDataSerializer serializer = prepareSerializer(out);
@@ -512,6 +538,21 @@ public class PacketDataSerializerTest {
         outCorrupted.writeByte(0x41); // Solo 1 byte en lugar de 3
         PacketDataSerializer deserializerCorrupted = prepareDeserializer(outCorrupted.toByteArray());
         assertThrows(PacketSerializationException.class, () -> deserializerCorrupted.readNullable(PacketDataSerializer::readString));
+    }
+
+    @Test
+    public void reflectionSerializer() throws PacketSerializationException {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+
+        PacketDataSerializer serializer = prepareSerializer(out);
+        TestCustomObject customObject = new TestCustomObject(42, "Test");
+
+        PacketSerializer.serialize(customObject, serializer);
+
+        PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
+
+        assertEquals(42, deserializer.readInt());
+        assertEquals("Test", deserializer.readString());
     }
 }
 

@@ -8,10 +8,7 @@ import com.github.razorplay.packet_handler.network.reflection.element.BuiltInCod
 import com.github.razorplay.packet_handler.network.reflection.element.codec.PrioritizedCodecResolver;
 import com.github.razorplay.packet_handler.network.reflection.element.codec.type.PacketTypeCodec;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 
 public class ClassSerializer {
 
@@ -88,7 +85,7 @@ public class ClassSerializer {
 
         int l = 0;
         for (Field field : fields) {
-            if (!field.isSynthetic()) {
+            if (!field.isSynthetic() && !Modifier.isStatic(field.getModifiers())) {
                 l++;
             }
         }
@@ -135,6 +132,7 @@ public class ClassSerializer {
 
         for (Field field : fields) {
             if (field.isSynthetic()) continue;
+            if (Modifier.isStatic(field.getModifiers())) continue;
 
             context = AnnotatedElementContext.of(field);
             try {

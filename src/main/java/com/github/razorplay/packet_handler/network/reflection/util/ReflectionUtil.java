@@ -1,7 +1,7 @@
-package com.github.razorplay.packet_handler.network.reflection;
+package com.github.razorplay.packet_handler.network.reflection.util;
 
 public final class ReflectionUtil {
-    
+
     /**
      * Converts boxed types (e.g., {@code Integer}) to their corresponding primitive types (e.g., {@code int}).<br>
      * If the type is not a known wrapper, the original class is returned.

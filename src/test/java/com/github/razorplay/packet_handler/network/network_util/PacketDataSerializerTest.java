@@ -1,7 +1,8 @@
 package com.github.razorplay.packet_handler.network.network_util;
 
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
-import com.github.razorplay.packet_handler.network.reflection.PacketClassSerializer;
+import com.github.razorplay.packet_handler.network.reflection.ClassSerializer;
+import com.github.razorplay.packet_handler.network.reflection.element.AnnotatedElementContext;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -553,10 +554,10 @@ public class PacketDataSerializerTest {
         PacketDataSerializer serializer = prepareSerializer(out);
         TestCustomObject customObject = new TestCustomObject(42, "Test");
 
-        PacketClassSerializer.serialize(customObject, serializer);
+        ClassSerializer.encode(serializer, AnnotatedElementContext.ofClass(customObject));
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        TestCustomObject deserializedObject = PacketClassSerializer.deserialize(deserializer, TestCustomObject.class);
+        TestCustomObject deserializedObject = ClassSerializer.decode(deserializer, TestCustomObject.class);
 
         assertEquals(customObject.intValue, deserializedObject.intValue);
         assertEquals(customObject.stringValue, deserializedObject.stringValue);

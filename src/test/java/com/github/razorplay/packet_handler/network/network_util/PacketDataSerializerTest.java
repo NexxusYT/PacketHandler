@@ -1,6 +1,7 @@
 package com.github.razorplay.packet_handler.network.network_util;
 
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
+import com.github.razorplay.packet_handler.network.reflection.PacketClassSerializer;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -12,6 +13,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+// Enum para pruebas
+enum TestEnum {
+    VALUE1, VALUE2
+}
 
 public class PacketDataSerializerTest {
 
@@ -547,18 +553,13 @@ public class PacketDataSerializerTest {
         PacketDataSerializer serializer = prepareSerializer(out);
         TestCustomObject customObject = new TestCustomObject(42, "Test");
 
-        PacketSerializer.serialize(customObject, serializer);
+        PacketClassSerializer.serialize(customObject, serializer);
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
 
         assertEquals(42, deserializer.readInt());
         assertEquals("Test", deserializer.readString());
     }
-}
-
-// Enum para pruebas
-enum TestEnum {
-    VALUE1, VALUE2
 }
 
 // Objeto personalizado para pruebas

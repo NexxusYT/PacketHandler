@@ -4,6 +4,7 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21.1-brightgreen)
 ![License](https://img.shields.io/badge/License-MPL--2.0-yellow)
+[![](https://jitpack.io/v/RazorPlay01/PacketHandler.svg)](https://jitpack.io/#RazorPlay01/PacketHandler)
 
 ## Overview
 

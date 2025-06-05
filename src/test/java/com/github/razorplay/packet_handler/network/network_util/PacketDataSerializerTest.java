@@ -554,7 +554,10 @@ public class PacketDataSerializerTest {
         PacketDataSerializer serializer = prepareSerializer(out);
         TestCustomObject customObject = new TestCustomObject(42, "Test");
 
-        ClassSerializer.encode(serializer, AnnotatedElementContext.ofClass(customObject));
+        if (ClassSerializer.encode(serializer, AnnotatedElementContext.ofClass(customObject))) {
+            // Found direct decoder method
+            System.out.println("Found direct decoder method");
+        }
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
         TestCustomObject deserializedObject = ClassSerializer.decode(deserializer, TestCustomObject.class);

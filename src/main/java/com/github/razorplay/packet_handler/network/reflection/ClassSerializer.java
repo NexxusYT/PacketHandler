@@ -9,8 +9,18 @@ import com.github.razorplay.packet_handler.network.reflection.element.codec.Prio
 import com.github.razorplay.packet_handler.network.reflection.element.codec.type.PacketTypeCodec;
 
 import java.lang.reflect.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
-public class ClassSerializer {
+/**
+ * x) Hacer que el encode y decode sean recursivos, con un array de parámetro para prevenir dependencias circulares.
+ * -) Hacer un pequeño cache para las funciones que se pueda, especialmente la de getCodec.
+ * -) Hacer un refactor a esta clase separando mejor las funciones etc.
+ * -) Añadir javadocs al resto de las clases.
+ * -) Y tienes pensado hacer una especie de @PacketHandler y PacketListener además de la clase SimplePacket que auto serialize.
+ */
+public final class ClassSerializer {
 
     @SuppressWarnings("unchecked")
     public static <T> T tryDecodeFromCustomSerializable(PacketDataSerializer reader, AnnotatedElementContext context) throws PacketSerializationException {
@@ -30,24 +40,33 @@ public class ClassSerializer {
         throw new PacketSerializationException("No default constructor found for custom serializable");
     }
 
-    public static <T> T tryDecodeWithCodecs(PacketDataSerializer reader, AnnotatedElementContext context) throws PacketSerializationException {
-        Class<?> output = context.getUnwrappedType();
+    @SuppressWarnings("unchecked")
+    public static <T> T tryDecodeWithCodecsRecursively(PacketDataSerializer reader, AnnotatedElementContext context, List<Integer> inputCache) throws PacketSerializationException {
+        Class<T> output = (Class<T>) context.getUnwrappedType();
+        if (inputCache.contains(output.hashCode())) {
+            throw new PacketSerializationException("Circular reference detected for " + output);
+        }
+
         if (CustomSerializable.class.isAssignableFrom(output)) {
             return tryDecodeFromCustomSerializable(reader, context);
         }
 
-        System.out.println("Searching specific codecs...");
-
         try {
             PacketTypeCodec<T> codec = getCodec(context);
             return codec.getReader().decode(reader);
-        } catch (PacketSerializationException e) {
-            throw new PacketSerializationException("No codec found for " + output, e);
+        } catch (PacketSerializationException ignored) {
         }
+
+        inputCache.add(output.hashCode());
+        return ClassSerializer.createAndPopulateInstance(reader, output, inputCache);
     }
 
-    public static boolean tryEncodeWithCodecs(PacketDataSerializer writer, AnnotatedElementContext context) {
+    public static boolean tryEncodeWithCodecsRecursively(PacketDataSerializer writer, AnnotatedElementContext context, List<Integer> inputCache) throws PacketSerializationException {
         Object input = context.getValue();
+        AnnotatedElementContext elementContext = context;
+        if (inputCache.contains(elementContext.getUnwrappedType().hashCode())) {
+            throw new PacketSerializationException("Circular reference detected for " + elementContext.getUnwrappedType());
+        }
 
         if (input instanceof CustomSerializable) {
             CustomSerializable customSerializable = (CustomSerializable) input;
@@ -55,72 +74,68 @@ public class ClassSerializer {
             return true;
         }
 
-        System.out.println("Searching specific codecs...");
-
         try {
-            PacketTypeCodec<Object> codec = getCodec(context);
+            PacketTypeCodec<Object> codec = getCodec(elementContext);
             codec.getWriter().encode(writer, input);
             return true;
         } catch (PacketSerializationException ignored) {
         }
 
+        inputCache.add(elementContext.getUnwrappedType().hashCode());
+        for (Field field : elementContext.getUnwrappedType().getDeclaredFields()) {
+            if (!ClassSerializer.isFieldValid(field)) continue;
+
+            elementContext = AnnotatedElementContext.of(field, input);
+            ClassSerializer.tryEncodeWithCodecsRecursively(writer, elementContext, inputCache);
+        }
         return false;
     }
 
-    public static <T> T decode(PacketDataSerializer reader, Class<T> output) throws PacketSerializationException {
-        AnnotatedElementContext context = AnnotatedElementContext.of(output);
-        try {
-            return ClassSerializer.tryDecodeWithCodecs(reader, context);
-        } catch (PacketSerializationException exception) {
-            exception.printStackTrace(System.out);
-        }
+    private static <T> T createFullConstructor(Constructor<T> fullConstructor, PacketDataSerializer reader, List<Integer> inputCache) throws PacketSerializationException {
+        Parameter[] parameters = fullConstructor.getParameters();
+        Object[] instances = new Object[parameters.length];
 
-        System.out.println("Creating custom codec:");
-
-        Constructor<T> emptyConstructor = null;
-        Constructor<T> fullConstructor = null;
-
-        Field[] fields = output.getDeclaredFields();
-        Constructor<T>[] constructors = (Constructor<T>[]) output.getConstructors();
-
-        int l = 0;
-        for (Field field : fields) {
-            if (!field.isSynthetic() && !Modifier.isStatic(field.getModifiers())) {
-                l++;
+        AnnotatedElementContext context;
+        for (int i = 0; i < parameters.length; i++) {
+            try {
+                context = AnnotatedElementContext.of(parameters[i]);
+                instances[i] = ClassSerializer.tryDecodeWithCodecsRecursively(reader, context, inputCache);
+            } catch (PacketSerializationException e) {
+                throw new PacketSerializationException("Failed to decode parameter " + i + " " + parameters[i].getType().getName(), e);
             }
         }
-        System.out.println("Found " + l + " declared fields.");
+
+        try {
+            fullConstructor.setAccessible(true);
+            return fullConstructor.newInstance(instances);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            throw new PacketSerializationException("Failed to instantiate custom serializable", e);
+        }
+    }
+
+    private static <T> T createAndPopulateInstance(PacketDataSerializer reader, Class<T> output, List<Integer> inputCache) throws PacketSerializationException {
+        Field[] fields = Stream.of(output.getDeclaredFields()).filter(ClassSerializer::isFieldValid).toArray(Field[]::new);
+
+        Constructor<T>[] constructors = ClassSerializer.getConstructors(output);
+        Constructor<T> emptyConstructor = null;
+
         for (Constructor<T> constructor : constructors) {
             System.out.println("Found constructor with " + constructor.getParameterCount() + " parameters.");
 
-            if (constructor.getParameterCount() == l) fullConstructor = constructor;
-            if (constructor.getParameterCount() == 0) emptyConstructor = constructor;
-
-            if (emptyConstructor != null && fullConstructor != null) break;
-        }
-        if (emptyConstructor == null && fullConstructor == null) {
-            throw new PacketSerializationException("No default constructor found for custom serializable");
-        }
-
-        if (fullConstructor != null) {
-            Parameter[] parameters = fullConstructor.getParameters();
-            Object[] instances = new Object[parameters.length];
-
-            for (int i = 0; i < parameters.length; i++) {
-                context = AnnotatedElementContext.of(parameters[i]);
+            if (constructor.getParameterCount() == fields.length) {
                 try {
-                    instances[i] = ClassSerializer.tryDecodeWithCodecs(reader, context);
-                } catch (PacketSerializationException e) {
-                    throw new PacketSerializationException("Failed to decode parameter " + i + " " + parameters[i].getType().getName(), e);
+                    return ClassSerializer.createFullConstructor(constructor, reader, inputCache);
+                } catch (PacketSerializationException ignored) {
                 }
             }
 
-            try {
-                fullConstructor.setAccessible(true);
-                return fullConstructor.newInstance(instances);
-            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                throw new PacketSerializationException("Failed to instantiate custom serializable", e);
+            if (constructor.getParameterCount() == 0) {
+                emptyConstructor = constructor;
             }
+        }
+
+        if (emptyConstructor == null) {
+            throw new PacketSerializationException("No default constructor found for custom serializable");
         }
 
         T out;
@@ -130,14 +145,12 @@ public class ClassSerializer {
             throw new PacketSerializationException("Failed to instantiate custom serializable", e);
         }
 
+        AnnotatedElementContext elementContext;
         for (Field field : fields) {
-            if (field.isSynthetic()) continue;
-            if (Modifier.isStatic(field.getModifiers())) continue;
-
-            context = AnnotatedElementContext.of(field);
+            elementContext = AnnotatedElementContext.of(field);
             try {
                 field.setAccessible(true);
-                field.set(out, ClassSerializer.tryDecodeWithCodecs(reader, context));
+                field.set(out, ClassSerializer.tryDecodeWithCodecsRecursively(reader, elementContext, inputCache));
             } catch (IllegalAccessException e) {
                 e.printStackTrace(System.out);
             }
@@ -145,23 +158,12 @@ public class ClassSerializer {
         return out;
     }
 
+    public static <T> T decode(PacketDataSerializer reader, Class<T> output) throws PacketSerializationException {
+        return ClassSerializer.tryDecodeWithCodecsRecursively(reader, AnnotatedElementContext.of(output), new ArrayList<>());
+    }
+
     public static boolean encode(PacketDataSerializer writer, AnnotatedElementContext context) throws PacketSerializationException {
-        if (ClassSerializer.tryEncodeWithCodecs(writer, context)) {
-            return true;
-        }
-
-        System.out.println("Creating custom codec:");
-
-        Object input = context.getValue();
-        AnnotatedElementContext elementContext;
-
-        for (Field field : context.getUnwrappedType().getDeclaredFields()) {
-            if (field.isSynthetic()) continue;
-
-            elementContext = AnnotatedElementContext.of(field, input);
-            ClassSerializer.tryEncodeWithCodecs(writer, elementContext);
-        }
-        return false;
+        return ClassSerializer.tryEncodeWithCodecsRecursively(writer, context, new ArrayList<>());
     }
 
     @SuppressWarnings("unchecked")
@@ -178,5 +180,14 @@ public class ClassSerializer {
             }
         }
         throw new PacketSerializationException("No codec found for " + inputClass);
+    }
+
+    private static boolean isFieldValid(Field field) {
+        return !field.isSynthetic() && !Modifier.isStatic(field.getModifiers());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Constructor<T>[] getConstructors(Class<T> clazz) {
+        return (Constructor<T>[]) clazz.getConstructors();
     }
 }

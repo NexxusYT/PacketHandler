@@ -5,6 +5,8 @@ import com.github.razorplay.packet_handler.exceptions.PacketNotFoundException;
 import com.github.razorplay.packet_handler.exceptions.PacketRegistrationException;
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
+import com.github.razorplay.packet_handler.network.packet.SimplePacket;
+import com.github.razorplay.packet_handler.network.reflection.ClassSerializer;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
@@ -155,25 +157,29 @@ public class PacketTCP {
      * @throws PacketInstantiationException if there's an error creating the packet instance
      * @throws PacketSerializationException if there's an error during deserialization
      */
-    public static IPacket read(ByteArrayDataInput buf) throws PacketInstantiationException, PacketSerializationException {
+    @SuppressWarnings("unchecked")
+    public static <T extends IPacket> T read(ByteArrayDataInput buf) throws PacketInstantiationException, PacketSerializationException {
         String packetType = buf.readUTF();
-        Class<? extends IPacket> packetClass = PACKET_REGISTRY.get(packetType);
+        Class<T> packetClass = (Class<T>) PACKET_REGISTRY.get(packetType);
 
         if (packetClass == null) {
             throw new PacketInstantiationException("Could not find packet with ID " + packetType, null);
         }
 
+        PacketDataSerializer serializer = new PacketDataSerializer(buf);
+        if (packetClass.isAssignableFrom(SimplePacket.class)) {
+            // Handle custom deserialization process for SimplePacket
+            return ClassSerializer.decode(serializer, packetClass);
+        }
+
         try {
-            IPacket packet = packetClass.getDeclaredConstructor().newInstance();
-            PacketDataSerializer serializer = new PacketDataSerializer(buf);
+            T packet = packetClass.getDeclaredConstructor().newInstance();
             packet.read(serializer);
             return packet;
         } catch (ReflectiveOperationException e) {
             throw new PacketInstantiationException("Error instantiating packet with ID " + packetType, e);
-        } catch (PacketSerializationException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new PacketSerializationException("Unexpected error deserializing packet with ID " + packetType, e);
+        } catch (Exception genericException) {
+            throw new PacketSerializationException("Unexpected error deserializing packet with ID " + packetType, genericException);
         }
     }
 

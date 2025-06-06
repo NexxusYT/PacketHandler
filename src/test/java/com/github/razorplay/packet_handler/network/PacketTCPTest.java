@@ -1,7 +1,9 @@
 package com.github.razorplay.packet_handler.network;
 
+import com.github.razorplay.packet_handler.exceptions.PacketInstantiationException;
+import com.github.razorplay.packet_handler.exceptions.PacketRegistrationException;
+import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
-import com.github.razorplay.packet_handler.exceptions.*;
 import com.github.razorplay.packet_handler.network.packet.EmptyPacket;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
@@ -31,7 +33,6 @@ public class PacketTCPTest {
         IPacket result = PacketTCP.read(in);
 
         assertTrue(result instanceof EmptyPacket);
-        assertEquals("EmptyPacket", result.getPacketId());
     }
 
     @Test
@@ -143,7 +144,6 @@ public class PacketTCPTest {
         IPacket result = PacketTCP.readCompressed(compressedData);
 
         assertTrue(result instanceof EmptyPacket);
-        assertEquals("EmptyPacket", result.getPacketId());
     }
 
     @Test
@@ -237,11 +237,6 @@ class TestPacket implements IPacket {
     @Override
     public void write(PacketDataSerializer serializer) throws PacketSerializationException {
         serializer.writeString(this.data);
-    }
-
-    @Override
-    public String getPacketId() {
-        return "TestPacket";
     }
 
     public String getData() {

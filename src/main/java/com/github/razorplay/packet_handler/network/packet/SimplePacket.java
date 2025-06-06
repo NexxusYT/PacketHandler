@@ -5,14 +5,8 @@ import com.github.razorplay.packet_handler.network.IPacket;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
 import com.github.razorplay.packet_handler.network.reflection.ClassSerializer;
 import com.github.razorplay.packet_handler.network.reflection.element.AnnotatedElementContext;
-import com.github.razorplay.packet_handler.util.StringUtil;
 
 public interface SimplePacket extends IPacket {
-
-    @Override
-    default String getPacketId() {
-        return StringUtil.toSnakeCase(this.getClass().getSimpleName());
-    }
 
     @Override
     default void write(final PacketDataSerializer serializer) throws PacketSerializationException {

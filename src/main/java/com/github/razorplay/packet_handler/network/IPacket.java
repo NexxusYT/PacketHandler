@@ -36,12 +36,4 @@ public interface IPacket {
      *                                      or issues with the underlying output buffer.
      */
     void write(final PacketDataSerializer serializer) throws PacketSerializationException;
-
-    /**
-     * Returns the unique identifier for this packet type.
-     * The ID should be unique across all packet implementations to ensure proper routing.
-     *
-     * @return A string representing the unique identifier of the packet
-     */
-    String getPacketId();
 }

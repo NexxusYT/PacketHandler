@@ -6,7 +6,9 @@ import com.github.razorplay.packet_handler.exceptions.PacketRegistrationExceptio
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
 import com.github.razorplay.packet_handler.network.network_util.PacketDataSerializer;
 import com.github.razorplay.packet_handler.network.packet.SimplePacket;
+import com.github.razorplay.packet_handler.network.packet.annotation.PacketIdentifier;
 import com.github.razorplay.packet_handler.network.reflection.ClassSerializer;
+import com.github.razorplay.packet_handler.util.StringUtil;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.io.ByteArrayDataInput;
@@ -45,6 +47,7 @@ public class PacketTCP {
      * @param packetClasses Array of packet classes to register
      * @throws IllegalArgumentException if packetClasses is null or empty
      */
+    @SafeVarargs
     public static void registerPackets(Class<? extends IPacket>... packetClasses) {
         if (packetClasses == null || packetClasses.length == 0) {
             throw new IllegalArgumentException("Packet classes cannot be null or empty.");
@@ -55,19 +58,13 @@ public class PacketTCP {
                 throw new PacketRegistrationException("Class " + packetClass.getName() + " does not implement IPacket.");
             }
 
-            try {
-                IPacket tempPacket = packetClass.getDeclaredConstructor().newInstance();
-                String packetId = tempPacket.getPacketId();
-
-                if (PACKET_REGISTRY.containsKey(packetId)) {
-                    throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
-                }
-
-                registerPacket(packetId, packetClass);
-                LOGGER.info("Registered packet: {} with ID \"{}\"", packetClass.getSimpleName(), packetId);
-            } catch (ReflectiveOperationException e) {
-                throw new PacketRegistrationException("Failed to instantiate packet class " + packetClass.getName());
+            String packetId = PacketTCP.getPacketId(packetClass);
+            if (PACKET_REGISTRY.containsKey(packetId)) {
+                throw new PacketRegistrationException("Duplicate Packet ID \"" + packetId + "\" found in " + packetClass.getName());
             }
+
+            registerPacket(packetId, packetClass);
+            LOGGER.info("Registered packet: {} with ID \"{}\"", packetClass.getSimpleName(), packetId);
         }
     }
 
@@ -211,5 +208,36 @@ public class PacketTCP {
         } catch (IOException e) {
             throw new PacketSerializationException("Error decompressing packet data", e);
         }
+    }
+
+    /**
+     * Retrieves the packet unique identifier for a given packet class.
+     *
+     * <p>If the class is annotated with {@link PacketIdentifier}, the value of the {@code id()}
+     * field is returned. Otherwise, the class name is converted to snake_case and returned
+     * as a fallback identifier.</p>
+     *
+     * <p>This method is typically used for registering or resolving packets by ID during
+     * serialization and deserialization.</p>
+     *
+     * <pre>{@code
+     * @PacketIdentifier(id = "example:my_packet")
+     * class MyPacket {}
+     *
+     * getPacketId(MyPacket.class); // returns "example:my_packet"
+     *
+     * class LoginPacket {}
+     * getPacketId(LoginPacket.class); // returns "login_packet"
+     * }</pre>
+     *
+     * @param packetClass the class representing the packet.
+     * @return the resolved packet ID, either from the annotation or derived from the class name.
+     */
+    public static String getPacketId(Class<?> packetClass) {
+        if (packetClass.isAnnotationPresent(PacketIdentifier.class)) {
+            PacketIdentifier identifierAnnotation = packetClass.getAnnotation(PacketIdentifier.class);
+            return identifierAnnotation.id();
+        }
+        return StringUtil.toSnakeCase(packetClass.getSimpleName());
     }
 }

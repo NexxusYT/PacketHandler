@@ -26,11 +26,6 @@ import lombok.NoArgsConstructor;
  *     public void write(PacketDataSerializer serializer) throws PacketSerializationException {
  *         serializer.writeString(this.someData);
  *     }
- *
- *     @Override
- *     public String getPacketId() {
- *         return "MyNewPacket";
- *     }
  * }
  * }</pre>
  *
@@ -47,15 +42,5 @@ public class EmptyPacket implements IPacket {
     @Override
     public void write(PacketDataSerializer serializer) throws PacketSerializationException {
         // Empty implementation - no data to write
-    }
-
-    /**
-     * Returns the unique identifier for this packet type.
-     *
-     * @return The string "EmptyPacket" as this packet's identifier
-     */
-    @Override
-    public String getPacketId() {
-        return "EmptyPacket";
     }
 }

@@ -5,7 +5,14 @@ import com.github.razorplay.packet_handler.network.reflection.element.codec.Prio
 import com.github.razorplay.packet_handler.network.reflection.element.codec.TypeMatchCodecResolver;
 import com.github.razorplay.packet_handler.network.reflection.element.codec.type.PacketTypeCodec;
 
-public class BuiltInCodecs {
+/**
+ * Provides a set of built-in {@link PacketTypeCodec} instances and corresponding
+ * resolvers implementations for common types.
+ *
+ * <p>This class defines codecs and resolvers for {@code String} and {@code int}, and
+ * provides them in a statically sorted array based on their priority.</p>
+ */
+public final class BuiltInCodecs {
 
     private static final PacketTypeCodec<String> STRING_CODEC = new PacketTypeCodec<>(PacketDataSerializer::writeString, PacketDataSerializer::readString);
     private static final PacketTypeCodec<Integer> INTEGER_CODEC = new PacketTypeCodec<>(PacketDataSerializer::writeInt, PacketDataSerializer::readInt);
@@ -17,5 +24,9 @@ public class BuiltInCodecs {
             BuiltInCodecs.STRING_RESOLVER,
             BuiltInCodecs.INTEGER_RESOLVER
     };
+    
+    /**
+     * Array of resolvers sorted by priority in descending order.
+     */
     public static final PrioritizedCodecResolver<?>[] SORTED_RESOLVERS = PrioritizedCodecResolver.sort(RESOLVERS);
 }

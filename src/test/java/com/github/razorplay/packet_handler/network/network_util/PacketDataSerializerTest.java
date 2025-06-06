@@ -567,6 +567,16 @@ public class PacketDataSerializerTest {
     }
 }
 
+class TextCustomNonSerializableObject {
+    int intValue;
+    String stringValue;
+
+    public TextCustomNonSerializableObject(int intValue, String stringValue) {
+        this.intValue = intValue;
+        this.stringValue = stringValue;
+    }
+}
+
 // Objeto personalizado para pruebas
 class TestCustomObject implements CustomSerializable {
     int intValue;
@@ -575,6 +585,9 @@ class TestCustomObject implements CustomSerializable {
     public TestCustomObject(int intValue, String stringValue) {
         this.intValue = intValue;
         this.stringValue = stringValue;
+    }
+
+    public TestCustomObject() {
     }
 
     @Override

@@ -27,6 +27,7 @@ public final class ClassSerializer {
         Constructor<?>[] constructors = context.getUnwrappedType().getDeclaredConstructors();
         for (Constructor<?> constructor : constructors) {
             if (constructor.getParameterCount() == 0) {
+                constructor.setAccessible(true);
                 try {
                     CustomSerializable customSerializable = (CustomSerializable) constructor.newInstance();
                     customSerializable.deserialize(reader);
@@ -36,8 +37,7 @@ public final class ClassSerializer {
                 }
             }
         }
-        System.out.println("Exception triggered!");
-        throw new PacketSerializationException("No default constructor found for custom serializable");
+        throw new PacketSerializationException("No default constructor found for custom serializable. There must be a constructor with any parameters.");
     }
 
     @SuppressWarnings("unchecked")

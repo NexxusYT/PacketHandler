@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  * x) Hacer que el encode y decode sean recursivos, con un array de parámetro para prevenir dependencias circulares.
  * -) Hacer un pequeño cache para las funciones que se pueda, especialmente la de getCodec.
  * -) Hacer un refactor a esta clase separando mejor las funciones etc.
- * -) Añadir javadocs al resto de las clases.
+ * x) Añadir javadocs al resto de las clases.
  * -) Y tienes pensado hacer una especie de @PacketHandler y PacketListener además de la clase SimplePacket que auto serialize.
  */
 public final class ClassSerializer {

@@ -9,7 +9,7 @@ import com.github.razorplay.packet_handler.network.reflection.element.codec.type
  * @param <T> the type of object the resolved codec will encode and decode.
  */
 @FunctionalInterface
-public interface CodecResolver<T> {
+public interface CodecResolver {
 
     /**
      * Resolves a {@link PacketTypeCodec} for the given annotated element context.
@@ -17,5 +17,5 @@ public interface CodecResolver<T> {
      * @param context the context providing annotations or metadata to guide codec resolution.
      * @return the resolved {@link PacketTypeCodec} for type {@code T}.
      */
-    PacketTypeCodec<T> resolveCodec(AnnotatedElementContext context);
+    PacketTypeCodec<?> resolveCodec(AnnotatedElementContext context);
 }

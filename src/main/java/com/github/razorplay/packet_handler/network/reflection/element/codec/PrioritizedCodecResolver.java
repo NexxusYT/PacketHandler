@@ -11,15 +11,13 @@ import lombok.EqualsAndHashCode;
  * to determine whether the resolver is applicable for a context.
  *
  * <p>Resolvers with higher priority values are considered first when sorted.</p>
- *
- * @param <T> the type of object that the codec resolver handles.
  */
 @EqualsAndHashCode
 @AllArgsConstructor
-public class PrioritizedCodecResolver<T> {
+public class PrioritizedCodecResolver {
 
     private final int priority;
-    private final CodecResolver<T> codecResolver;
+    private final CodecResolver codecResolver;
     private final ElementPredicate elementPredicate;
 
     /**
@@ -28,7 +26,7 @@ public class PrioritizedCodecResolver<T> {
      * @param codecResolver    the codec resolver.
      * @param elementPredicate the predicate that determines applicability.
      */
-    public PrioritizedCodecResolver(CodecResolver<T> codecResolver, ElementPredicate elementPredicate) {
+    public PrioritizedCodecResolver(CodecResolver codecResolver, ElementPredicate elementPredicate) {
         this.priority = 0;
         this.codecResolver = codecResolver;
         this.elementPredicate = elementPredicate;
@@ -40,11 +38,11 @@ public class PrioritizedCodecResolver<T> {
      * @param resolvers the array of resolvers to sort.
      * @return the sorted array, with the highest-priority resolvers first.
      */
-    public static PrioritizedCodecResolver<?>[] sort(PrioritizedCodecResolver<?>[] resolvers) {
+    public static PrioritizedCodecResolver[] sort(PrioritizedCodecResolver[] resolvers) {
         for (int i = 0; i < resolvers.length; i++) {
             for (int j = i + 1; j < resolvers.length; j++) {
                 if (resolvers[i].priority < resolvers[j].priority) {
-                    PrioritizedCodecResolver<?> temp = resolvers[i];
+                    PrioritizedCodecResolver temp = resolvers[i];
                     resolvers[i] = resolvers[j];
                     resolvers[j] = temp;
                 }
@@ -69,7 +67,8 @@ public class PrioritizedCodecResolver<T> {
      * @param context the annotation context to use during resolution.
      * @return the resolved {@link PacketTypeCodec}.
      */
-    public PacketTypeCodec<T> resolveCodec(AnnotatedElementContext context) {
-        return codecResolver.resolveCodec(context);
+    @SuppressWarnings("unchecked")
+    public <T> PacketTypeCodec<T> resolveCodec(AnnotatedElementContext context) {
+        return (PacketTypeCodec<T>) codecResolver.resolveCodec(context);
     }
 }

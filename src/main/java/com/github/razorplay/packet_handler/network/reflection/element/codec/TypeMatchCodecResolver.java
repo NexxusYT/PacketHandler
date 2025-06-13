@@ -10,7 +10,7 @@ import com.github.razorplay.packet_handler.network.reflection.element.codec.type
  *
  * @param <T> the type of object the codec handles.
  */
-public final class TypeMatchCodecResolver<T> extends PrioritizedCodecResolver<T> {
+public final class TypeMatchCodecResolver<T> extends PrioritizedCodecResolver {
 
     /**
      * Constructs a {@code TypeMatchCodecResolver} with the given type and codec.

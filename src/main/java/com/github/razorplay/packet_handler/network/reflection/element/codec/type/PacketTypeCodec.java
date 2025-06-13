@@ -1,6 +1,8 @@
 package com.github.razorplay.packet_handler.network.reflection.element.codec.type;
 
-import lombok.Value;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Represents a codec for a specific packet type, including both an encoder and a decoder
@@ -16,16 +18,18 @@ import lombok.Value;
  *
  * @param <T> the type of data to be encoded and decoded.
  */
-@Value
+@Getter
+@EqualsAndHashCode
+@RequiredArgsConstructor
 public class PacketTypeCodec<T> {
 
     /**
      * Encoder for the {@code T} type, used to serialize the object into a transferable format.
      */
-    TypeEncoder<T> writer;
+    private final TypeEncoder<T> writer;
 
     /**
      * Decoder for the {@code T} type, used to deserialize data back into an object instance.
      */
-    TypeDecoder<T> reader;
+    private final TypeDecoder<T> reader;
 }

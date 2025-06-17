@@ -1,10 +1,11 @@
 package com.github.razorplay.packet_handler.network.network_util;
 
 import com.github.razorplay.packet_handler.exceptions.PacketSerializationException;
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteArrayDataOutput;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.EOFException;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -15,18 +16,17 @@ import java.util.function.BiConsumer;
  * including all primitive types, collections, maps, and custom serializable objects.
  */
 public class PacketDataSerializer {
-    private final ByteArrayDataOutput output;
-    private final ByteArrayDataInput input;
-
     private static final String NOT_WRITING_ERROR = "Not in writing mode";
     private static final String NOT_READING_ERROR = "Not in reading mode";
+    private final DataOutput output;
+    private final DataInput input;
 
-    public PacketDataSerializer(ByteArrayDataOutput output) {
+    public PacketDataSerializer(DataOutput output) {
         this.output = output;
         this.input = null;
     }
 
-    public PacketDataSerializer(ByteArrayDataInput input) {
+    public PacketDataSerializer(DataInput input) {
         this.input = input;
         this.output = null;
     }
@@ -47,7 +47,11 @@ public class PacketDataSerializer {
      */
     public void writeByte(byte value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeByte(value);
+        try {
+            output.writeByte(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -77,7 +81,11 @@ public class PacketDataSerializer {
      */
     public void writeShort(short value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeShort(value);
+        try {
+            output.writeShort(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -107,7 +115,11 @@ public class PacketDataSerializer {
      */
     public void writeInt(int value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeInt(value);
+        try {
+            output.writeInt(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -137,7 +149,11 @@ public class PacketDataSerializer {
      */
     public void writeLong(long value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeLong(value);
+        try {
+            output.writeLong(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -167,7 +183,11 @@ public class PacketDataSerializer {
      */
     public void writeFloat(float value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeFloat(value);
+        try {
+            output.writeFloat(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -197,7 +217,11 @@ public class PacketDataSerializer {
      */
     public void writeDouble(double value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeDouble(value);
+        try {
+            output.writeDouble(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -227,7 +251,11 @@ public class PacketDataSerializer {
      */
     public void writeChar(char value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeChar(value);
+        try {
+            output.writeChar(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -257,7 +285,11 @@ public class PacketDataSerializer {
      */
     public void writeBoolean(boolean value) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
-        output.writeBoolean(value);
+        try {
+            output.writeBoolean(value);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -291,7 +323,11 @@ public class PacketDataSerializer {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
         writeInt(bytes.length);
-        output.write(bytes);
+        try {
+            output.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -586,7 +622,7 @@ public class PacketDataSerializer {
      * @param <T>         The type of the value in the Optional
      * @throws IllegalStateException if the serializer is not in writing mode
      */
-    public <T> void writeOptional(Optional<T> optional, BiConsumer<PacketDataSerializer, T> valueWriter) {
+    public <T> void writeOptional(@SuppressWarnings("all") Optional<T> optional, BiConsumer<PacketDataSerializer, T> valueWriter) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
         writeBoolean(optional.isPresent());
         optional.ifPresent(t -> valueWriter.accept(this, t));
@@ -631,7 +667,11 @@ public class PacketDataSerializer {
     public void writeByteArray(byte[] bytes) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
         writeInt(bytes.length);
-        output.write(bytes);
+        try {
+            output.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
+        }
     }
 
     /**
@@ -736,11 +776,15 @@ public class PacketDataSerializer {
      * @param <T>         The type of the value
      * @throws IllegalStateException if the serializer is not in writing mode
      */
-    public <T> void writeNullable(T value, BiConsumer<PacketDataSerializer, T> valueWriter) {
+    public <T> void writeNullable(T value, ThrowingBiConsumer<PacketDataSerializer, T> valueWriter) {
         if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
         writeBoolean(value != null);
         if (value != null) {
-            valueWriter.accept(this, value);
+            try {
+                valueWriter.accept(this, value);
+            } catch (PacketSerializationException e) {
+                e.printStackTrace(System.out);
+            }
         }
     }
 
@@ -800,6 +844,15 @@ public class PacketDataSerializer {
             return instance;
         } catch (ReflectiveOperationException e) {
             throw new PacketSerializationException("Failed to instantiate custom object", e);
+        }
+    }
+
+    public void write(byte[] content) {
+        if (isNotWriting()) throw new IllegalStateException(NOT_WRITING_ERROR);
+        try {
+            output.write(content);
+        } catch (IOException e) {
+            e.printStackTrace(System.out);
         }
     }
 }

@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -170,7 +171,10 @@ public class PacketTCP {
         }
 
         try {
-            T packet = packetClass.getDeclaredConstructor().newInstance();
+            Constructor<T> declaredConstructor = packetClass.getDeclaredConstructor();
+            declaredConstructor.setAccessible(true);
+            T packet = declaredConstructor.newInstance();
+            
             packet.read(serializer);
             return packet;
         } catch (ReflectiveOperationException e) {
@@ -239,5 +243,13 @@ public class PacketTCP {
             return identifierAnnotation.id();
         }
         return StringUtil.toSnakeCase(packetClass.getSimpleName());
+    }
+
+    /**
+     * Clears the packet registry, removing all registered packet types.<br>
+     * This method should be used with caution as it may cause issues with packet handling.
+     */
+    public static void clearRegisteredPackets() {
+        PACKET_REGISTRY.clear();
     }
 }

@@ -69,6 +69,6 @@ public class PrioritizedCodecResolver {
      */
     @SuppressWarnings("unchecked")
     public <T> PacketTypeCodec<T> resolveCodec(AnnotatedElementContext context) {
-        return (PacketTypeCodec<T>) codecResolver.resolveCodec(context);
+        return (PacketTypeCodec<T>) codecResolver.resolveTransformedCodec(context);
     }
 }

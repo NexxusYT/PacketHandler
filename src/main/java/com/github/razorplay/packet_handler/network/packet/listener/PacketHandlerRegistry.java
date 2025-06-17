@@ -2,7 +2,7 @@ package com.github.razorplay.packet_handler.network.packet.listener;
 
 import com.github.razorplay.packet_handler.network.IPacket;
 import com.github.razorplay.packet_handler.network.packet.annotation.PacketHandler;
-import com.sun.istack.internal.NotNull;
+import lombok.NonNull;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -50,7 +50,7 @@ public final class PacketHandlerRegistry {
      * @throws NullPointerException     if the listener is null
      * @throws IllegalArgumentException if a method's first parameter is not an IPacket subtype
      */
-    public static void register(@NotNull PacketListener listener) {
+    public static void register(@NonNull PacketListener listener) {
         Objects.requireNonNull(listener, "Listener cannot be null");
         // Retrieve methods annotated with @PacketHandler
         Class<? extends PacketListener> listenerClass = listener.getClass();
@@ -92,9 +92,16 @@ public final class PacketHandlerRegistry {
             throw new IllegalArgumentException("Method " + method.getName() + " has no parameters");
         }
         Parameter firstParameter = method.getParameters()[0];
-        if (!firstParameter.getType().isAssignableFrom(IPacket.class)) {
+        if (!IPacket.class.isAssignableFrom(firstParameter.getType())) {
             throw new IllegalArgumentException("Method " + method.getName() + " does not have a parameter that implements IPacket");
         }
         return firstParameter.getType().asSubclass(IPacket.class);
+    }
+
+    /**
+     * Clears all registered packet handlers, effectively resetting the registry.
+     */
+    public static void clear() {
+        handlerContainers.clear();
     }
 }

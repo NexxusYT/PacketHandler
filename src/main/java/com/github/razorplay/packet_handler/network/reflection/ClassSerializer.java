@@ -8,6 +8,7 @@ import com.github.razorplay.packet_handler.network.reflection.element.BuiltInCod
 import com.github.razorplay.packet_handler.network.reflection.element.codec.PrioritizedCodecResolver;
 import com.github.razorplay.packet_handler.network.reflection.element.codec.type.PacketTypeCodec;
 
+import javax.annotation.Nullable;
 import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +65,7 @@ public final class ClassSerializer {
     @SuppressWarnings("unchecked")
     public static <T> T tryDecodeWithCodecsRecursively(PacketDataSerializer reader, AnnotatedElementContext context, List<Integer> inputCache) throws PacketSerializationException {
         Class<T> output = (Class<T>) context.getUnwrappedType();
+
         if (inputCache.contains(output.hashCode())) {
             throw new PacketSerializationException("Circular reference detected for " + output);
         }
@@ -72,10 +74,9 @@ public final class ClassSerializer {
             return tryDecodeFromCustomSerializable(reader, context);
         }
 
-        try {
-            PacketTypeCodec<T> codec = getCodec(context);
+        PacketTypeCodec<T> codec = getCodec(context);
+        if (codec != null) {
             return codec.getReader().decode(reader);
-        } catch (PacketSerializationException ignored) {
         }
 
         inputCache.add(output.hashCode());
@@ -105,11 +106,10 @@ public final class ClassSerializer {
             return true;
         }
 
-        try {
-            PacketTypeCodec<Object> codec = getCodec(elementContext);
+        PacketTypeCodec<Object> codec = getCodec(elementContext);
+        if (codec != null) {
             codec.getWriter().encode(writer, input);
             return true;
-        } catch (PacketSerializationException ignored) {
         }
 
         inputCache.add(elementContext.getUnwrappedType().hashCode());
@@ -242,20 +242,20 @@ public final class ClassSerializer {
      * @return the resolved codec
      * @throws PacketSerializationException if no codec is found or resolution fails
      */
-    @SuppressWarnings("unchecked")
+    @Nullable
     public static <T> PacketTypeCodec<T> getCodec(AnnotatedElementContext context) throws PacketSerializationException {
         Class<?> inputClass = context.getUnwrappedType();
 
-        for (PrioritizedCodecResolver<?> resolver : BuiltInCodecs.SORTED_RESOLVERS) {
+        for (PrioritizedCodecResolver resolver : BuiltInCodecs.SORTED_RESOLVERS) {
             if (resolver.matches(context)) {
                 try {
-                    return (PacketTypeCodec<T>) resolver.resolveCodec(context);
+                    return resolver.resolveCodec(context);
                 } catch (Exception exception) {
                     throw new PacketSerializationException("Failed to resolve codec for " + inputClass, exception);
                 }
             }
         }
-        throw new PacketSerializationException("No codec found for " + inputClass);
+        return null;
     }
 
     /**

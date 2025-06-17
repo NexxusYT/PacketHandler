@@ -6,6 +6,8 @@ import com.github.razorplay.packet_handler.network.reflection.element.AnnotatedE
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -552,7 +554,7 @@ public class PacketDataSerializerTest {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
 
         PacketDataSerializer serializer = prepareSerializer(out);
-        TestCustomObject customObject = new TestCustomObject(42, "Test");
+        TextCustomNonSerializableObject customObject = new TextCustomNonSerializableObject(42, "Test", new ArrayList<>(Arrays.asList("ListElement1", "ListElement2")), new String[]{"Element1", "Element2"});
 
         if (ClassSerializer.encode(serializer, AnnotatedElementContext.ofClass(customObject))) {
             // Found direct decoder method
@@ -560,35 +562,33 @@ public class PacketDataSerializerTest {
         }
 
         PacketDataSerializer deserializer = prepareDeserializer(out.toByteArray());
-        TestCustomObject deserializedObject = ClassSerializer.decode(deserializer, TestCustomObject.class);
+        TextCustomNonSerializableObject deserializedObject = ClassSerializer.decode(deserializer, TextCustomNonSerializableObject.class);
 
         assertEquals(customObject.intValue, deserializedObject.intValue);
         assertEquals(customObject.stringValue, deserializedObject.stringValue);
+        assertArrayEquals(customObject.elements, deserializedObject.elements);
+        assertIterableEquals(customObject.list, deserializedObject.list);
     }
 }
 
+@AllArgsConstructor
 class TextCustomNonSerializableObject {
     int intValue;
     String stringValue;
 
-    public TextCustomNonSerializableObject(int intValue, String stringValue) {
-        this.intValue = intValue;
-        this.stringValue = stringValue;
+    List<String> list;
+    String[] elements;
+
+    public TextCustomNonSerializableObject() {
     }
 }
 
 // Objeto personalizado para pruebas
+@AllArgsConstructor
+@NoArgsConstructor
 class TestCustomObject implements CustomSerializable {
     int intValue;
     String stringValue;
-
-    public TestCustomObject(int intValue, String stringValue) {
-        this.intValue = intValue;
-        this.stringValue = stringValue;
-    }
-
-    public TestCustomObject() {
-    }
 
     @Override
     public void serialize(PacketDataSerializer serializer) {
